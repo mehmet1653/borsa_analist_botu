@@ -24,7 +24,7 @@ TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS"
 # Şifreleri doğrudan Environment Variables (Ortam Değişkenleri) üzerinden çekiyoruz
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6IbUbQjvo-93yD8zjTXDhBPxv0QHRApd6mQZD3GFFP5UA")
 
 # Eğer Render şifreyi okuyamazsa veya boşluk kaldıysa diye garantiye alıyoruz
 if not GEMINI_API_KEY:
