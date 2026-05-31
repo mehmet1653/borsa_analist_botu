@@ -1,0 +1,7 @@
+requests
+yfinance
+pandas
+ta
+google-generativeai
+beautifulsoup4
+lxml
