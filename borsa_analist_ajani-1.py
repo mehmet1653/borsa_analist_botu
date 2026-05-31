@@ -21,14 +21,19 @@ PORTFOY_YEDEK = {
 }
 TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS"]
 
-# Şifreleri doğrudan Koyeb Environment Variables (Ortam Değişkenleri) üzerinden çekiyoruz
+# Şifreleri doğrudan Environment Variables (Ortam Değişkenleri) üzerinden çekiyoruz
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash')
+# Eğer Render şifreyi okuyamazsa veya boşluk kaldıysa diye garantiye alıyoruz
+if not GEMINI_API_KEY:
+    # Render'da bir sorun çıkma ihtimaline karşı anahtarını buraya yedek olarak da gömelim reis
+    GEMINI_API_KEY = "AQ.Ab8RN6IbUbQjvo-93yD8zjTXDhBPxv0QHRApd6mQZD3GFFP5UA"
 
+# str() ve .strip() ile şifrenin etrafındaki gizli boşlukları temizleyip metin olarak gönderiyoruz
+genai.configure(api_key=str(GEMINI_API_KEY).strip())
+model = genai.GenerativeModel('gemini-2.5-flash')
 # Verilerin Koyeb içinde güvenle saklanacağı dosya
 DATA_FILE = "ajan_hafizasi.json"
 
