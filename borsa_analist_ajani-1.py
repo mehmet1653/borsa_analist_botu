@@ -32,7 +32,7 @@ if not GEMINI_API_KEY:
     GEMINI_API_KEY = "AQ.Ab8RN6IbUbQjvo-93yD8zjTXDhBPxv0QHRApd6mQZD3GFFP5UA"
 
 # str() ve .strip() ile şifrenin etrafındaki gizli boşlukları temizleyip metin olarak gönderiyoruz
-genai.configure(api_key=str(os.environ.get("GEMINI_API_KEY")).strip()))
+genai.configure(api_key=str(os.environ.get("GEMINI_API_KEY")).strip())
 model = genai.GenerativeModel('gemini-2.5-flash')
 # Verilerin Koyeb içinde güvenle saklanacağı dosya
 DATA_FILE = "ajan_hafizasi.json"
