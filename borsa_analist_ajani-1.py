@@ -259,20 +259,35 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
 # ==========================================
 # 🔄 ANA DÖNGÜ (7/24 DİNLEME VE RAPORLAMA)
 # ==========================================
+# Render'ın botu kapatmasını engelleyen sahte sunucu fonksiyonu
+def run_dummy_server():
+    import os
+    from http.server import SimpleHTTPRequestHandler, HTTPServer
+    import threading
+    
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    print(f"==> Render için kukla sunucu {port} portunda başlatıldı!")
+    server.serve_forever()
+
 if __name__ == "__main__":
+    import threading
+    # Sahte sunucuyu arka planda başlatıp Render'ı kandırıyoruz
+    threading.Thread(target=run_dummy_server, daemon=True).start()
+    
     print("🚀 Borsa Ajanı başarıyla başlatıldı. Komutlar anlık dinleniyor...")
-    telegram_mesaj_gonder("🤖 *Borsa Analist Ajanı Koyeb Üzerinde Aktif!* \n\nYeni komutları test etmek için hemen `/yardim` yazabilirsiniz.")
+    telegram_mesaj_gonder("🤖 *Borsa Analist Ajanı Render Üzerinde Aktif!* \n\nYeni komutları test etmek için hemen `/yardim` yazabilirsiniz.")
     
     # Başlangıç test analizi
     ajani_calistir(rapor_tipi="ANLIK BAĞLANTI VE SİSTEM TESTİ")
     
     while True:
-        telegram_komutlari_dinle() 
+        telegram_komutlari_dinle()
         
         su_an = datetime.now().strftime("%H:%M:%S")
         if su_an == "11:00:00":
             ajani_calistir(rapor_tipi="SABAH AÇILIŞ VE PORTFÖY RİSK KONTROLÜ")
         elif su_an == "18:30:00":
-            ajani_calistir(rapor_tipi="AKŞAM KAPANIŞI VE MALIYET DEĞERLENDİRMESİ")
+            ajani_calistir(rapor_tipi="AKŞAM KAPANIŞ VE MALİYET DEĞERLENDİRMESİ")
             
         time.sleep(1)
