@@ -20,9 +20,9 @@ PORTFOY_YEDEK = {
 TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS"]
 
 # Şifreleri doğrudan Koyeb Environment Variables (Ortam Değişkenleri) üzerinden çekiyoruz
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8910246881:AAGzuI9xH42Jd9pMcQYWUQURKUtIessYORM")
-CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "6929517567")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6IbUbQjvo-93yD8zjTXDhBPxv0QHRApd6mQZD3GFFP5UA")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
