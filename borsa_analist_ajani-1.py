@@ -24,12 +24,12 @@ TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS"
 # Şifreleri doğrudan Environment Variables (Ortam Değişkenleri) üzerinden çekiyoruz
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6IbUbQjvo-93yD8zjTXDhBPxv0QHRApd6mQZD3GFFP5UA")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # Eğer Render şifreyi okuyamazsa veya boşluk kaldıysa diye garantiye alıyoruz
 if not GEMINI_API_KEY:
     # Render'da bir sorun çıkma ihtimaline karşı anahtarını buraya yedek olarak da gömelim reis
-    GEMINI_API_KEY = "AQ.Ab8RN6IbUbQjvo-93yD8zjTXDhBPxv0QHRApd6mQZD3GFFP5UA"
+    GEMINI_API_KEY = "AQ.Ab8RN6K_wraDxTNfR-qaqeJHO40gdpJLWp3o8jWYnR3IYgi7PA"
 
 # str() ve .strip() ile şifrenin etrafındaki gizli boşlukları temizleyip metin olarak gönderiyoruz
 genai.configure(api_key=str(os.environ.get("GEMINI_API_KEY")).strip())
