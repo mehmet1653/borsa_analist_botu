@@ -16,8 +16,8 @@ from datetime import datetime
 # ==========================================
 # Sunucu resetlense bile portföyün sıfırlanmaması için ana yedeğin burası:
 PORTFOY_YEDEK = {
-    "SASA.IS": {"lot": 1000, "maliyet": 4.50},   # Kendi gerçek lot/maliyetini yaz reis
-    "KRDMB.IS": {"lot": 500, "maliyet": 22.10}   # Kendi gerçek lot/maliyetini yaz reis
+    "SASA.IS": {"lot": 1000, "maliyet": 45.50},   # Midas'taki gerçek lot ve bölünmüş ortalama maliyetini buraya yaz reis
+    "KRDMB.IS": {"lot": 500, "maliyet": 22.10}    # Midas'taki gerçek lot ve bölünmüş ortalama maliyetini buraya yaz reis
 }
 TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS"]
 
@@ -28,13 +28,13 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # Eğer Render şifreyi okuyamazsa veya boşluk kaldıysa diye garantiye alıyoruz
 if not GEMINI_API_KEY:
-    # Render'da bir sorun çıkma ihtimaline karşı anahtarını buraya yedek olarak da gömelim reis
     GEMINI_API_KEY = "AQ.Ab8RN6K_wraDxTNfR-qaqeJHO40gdpJLWp3o8jWYnR3IYgi7PA"
 
 # str() ve .strip() ile şifrenin etrafındaki gizli boşlukları temizleyip metin olarak gönderiyoruz
-genai.configure(api_key=str(os.environ.get("GEMINI_API_KEY")).strip())
+genai.configure(api_key=str(GEMINI_API_KEY).strip())
 model = genai.GenerativeModel('gemini-2.5-flash')
-# Verilerin Koyeb içinde güvenle saklanacağı dosya
+
+# Verilerin güvenle saklanacağı dosya
 DATA_FILE = "ajan_hafizasi.json"
 
 # Hafıza dosyasını yükle veya yoksa yedeklerden otomatik oluştur (Sıfırlanma Koruması)
@@ -90,7 +90,7 @@ def telegram_komutlari_dinle():
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates"
     offset = HAFIZA.get("last_update_id", 0) + 1
     try:
-        response = requests.get(url, params={"offset": offset, "timeout": 20}, timeout=25).json() # Koyeb uzun döngü için timeout artırıldı
+        response = requests.get(url, params={"offset": offset, "timeout": 20}, timeout=25).json()
         if not response.get("result"): return
         
         for update in response["result"]:
@@ -182,15 +182,19 @@ def dunya_gundemini_cek():
 
 def finansal_veri_topla(sembol):
     try:
-        ticker = yf.Ticker(sembol)
-        df = ticker.history(period="1y")
+        # Sunucu limitine takılmamak için yfinance indirme yapısını tekli moda çektik reis
+        df = yf.download(sembol, period="1y", group_by="ticker", threads=False, progress=False)
         if df.empty: return None
         
-        guncel_fiyat = df['Close'].iloc[-1]
-        df['RSI'] = ta.momentum.rsi(df['Close'], window=14)
-        df['SMA_50'] = ta.trend.sma_indicator(df['Close'], window=50)
-        df['SMA_200'] = ta.trend.sma_indicator(df['Close'], window=200)
+        guncel_fiyat = float(df['Close'].iloc[-1])
         
+        # İndikatör hesaplamaları
+        close_series = df['Close'].squeeze()
+        df['RSI'] = ta.momentum.rsi(close_series, window=14)
+        df['SMA_50'] = ta.trend.sma_indicator(close_series, window=50)
+        df['SMA_200'] = ta.trend.sma_indicator(close_series, window=200)
+        
+        ticker = yf.Ticker(sembol)
         info = ticker.info
         
         portfoy_notu = "YOK"
@@ -208,7 +212,9 @@ def finansal_veri_topla(sembol):
             "pddd": info.get('priceToBook', 'Veri Yok'),
             "portfoy_durumu": portfoy_notu
         }
-    except: return None
+    except Exception as e:
+        print(f"⚠️ {sembol} veri toplama hatası: {e}")
+        return None
 
 def ajana_sentez_yaptir(gundem, piyasa_ozeti, rapor_tipi):
     prompt = f"""
@@ -218,17 +224,20 @@ def ajana_sentez_yaptir(gundem, piyasa_ozeti, rapor_tipi):
     KÜRESEL GÜNDEM: {gundem}
     VERİLER VE PORTFÖY BİLGİSİ: {piyasa_ozeti}
     
-    ⚠️ KESİN KURALLAR (BU KURALLARA UYMAK ZORUNDASIN):
-    1. ASLA UZUN VE SIKICI METİNLER YAZMA! Rapor toplamda maksimum 3-4 kısa paragraf veya net bullet point'lerden oluşsun. Sadede gel.
-    2. Kullanıcının elindeki hisseleri ("KULLANICININ ELİNDE VAR!" notu olan SASA, KRDMB vb.) raporda İSMEN zikret. Piyasalar kapalı olsa bile bu hisselerin adını geçirerek küresel krizlerin bu şirketlere (örneğin demir-çelik veya tekstil/polyester sektörüne) olası etkisini 1-2 cümleyle doğrudan yorumla.
-    3. Eğer risk varsa en başa tek satırlık "🚨 PORTFÖY RİSK UYARISI" ekle. Yatırım tavsiyesi vermeden, pratik bir dille Türkçe konuş.
+    ⚠️ KESİN KURALLAR (BU KURALLARA MİLİMETRİK UYMAK ZORUNDASIN):
+    1. ASLA UZUN VE SIKICI METİNLER YAZMA! Genel geçer, yuvarlak cümleler kurarak acemice yorumlar yapma. Sadede gel, net ol.
+    2. Her bir enstrümanı (SASA, KRDMB, THYAO vb.) başlıklar halinde ayır. Güncel fiyatını ve RSI değerini net olarak yaz.
+    3. Teknik verilere ve hareketli ortalamalara bakarak her hissenin trend yönünü açıkça "TREND: OLUMLU" veya "TREND: OLUMSUZ" şeklinde damgala.
+    4. Kullanıcının elindeki hisselerin adını geçirerek küresel risklerin bu şirketlere olası etkisini 1-2 cümleyle doğrudan ve keskin yorumla.
+    5. Raporu kısa, vurucu, tek bakışta ne olduğunu anlatan askeri bir disiplinle Türkçe sun.
     """
     try: 
         return model.generate_content(prompt).text
     except Exception as e: 
-        print(f"🔄 Birincil modelde sorun yaşandı, alternatif deneniyor... Hata: {e}")
+        print(f"🔄 Birincil model hatası, yedek çağrılıyor... Hata: {e}")
         try:
-            alternatif_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+            # 404 hatası veren o eski sinsi "-latest" model adını buradan sildik reis! Ana modele eşitledik.
+            alternatif_model = genai.GenerativeModel('gemini-2.5-flash')
             return alternatif_model.generate_content(prompt).text
         except Exception as ex:
             return f"🤖 Yapay zeka bağlantı hatası: {ex}"
@@ -252,7 +261,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
                 portfoy_notu = f"KULLANICININ ELİNDE VAR! Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f} TL (Canlı fiyat çekilemedi)"
             
             piyasa_ozeti += f"\n📌 {sembol}\n  - Fiyat/İndikatör: Veri çekilemedi veya piyasa kapalı.\n  - [YATIRIM DURUMU]: {portfoy_notu}\n"
-        time.sleep(1)
+        time.sleep(1) # Sunucu koruma gecikmesi
 
     ai_raporu = ajana_sentez_yaptir(gundem, piyasa_ozeti, rapor_tipi)
     simdi = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -264,20 +273,14 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
 # ==========================================
 # 🔄 ANA DÖNGÜ (7/24 DİNLEME VE RAPORLAMA)
 # ==========================================
-# Render'ın botu kapatmasını engelleyen sahte sunucu fonksiyonu
 def run_dummy_server():
-    import os
-    from http.server import SimpleHTTPRequestHandler, HTTPServer
-    import threading
-    
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
     print(f"==> Render için kukla sunucu {port} portunda başlatıldı!")
     server.serve_forever()
 
 if __name__ == "__main__":
-    import threading
-    # Sahte sunucuyu arka planda başlatıp Render'ı kandırıyoruz
+    # Sahte sunucuyu arka planda başlatıp Render'ı ayakta tutuyoruz
     threading.Thread(target=run_dummy_server, daemon=True).start()
     
     print("🚀 Borsa Ajanı başarıyla başlatıldı. Komutlar anlık dinleniyor...")
