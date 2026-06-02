@@ -10,34 +10,29 @@ import ta
 import google.generativeai as genai
 from bs4 import BeautifulSoup
 from datetime import datetime
+import datetime as dt
 
 # ==========================================
 # 🛠️ MEHMET REİS BULUT VE HAFIZA YEDEK AYARLARI
 # ==========================================
-# Sunucu resetlense bile portföyün sıfırlanmaması için ana yedeğin burası:
 PORTFOY_YEDEK = {
-    "SASA.IS": {"lot": 19, "maliyet": 3.65},   # Midas'taki gerçek lot ve bölünmüş ortalama maliyetini buraya yaz reis
-    "KRDMB.IS": {"lot": 13, "maliyet": 96.35}    # Midas'taki gerçek lot ve bölünmüş ortalama maliyetini buraya yaz reis
+    "SASA.IS": {"lot": 19, "maliyet": 3.65},   
+    "KRDMB.IS": {"lot": 13, "maliyet": 96.35}   
 }
-TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS"]
+TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS", "ASTOR.IS", "KCHOL.IS", "MRGYO.IS"]
 
-# Şifreleri doğrudan Environment Variables (Ortam Değişkenleri) üzerinden çekiyoruz
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# Eğer Render şifreyi okuyamazsa veya boşluk kaldıysa diye garantiye alıyoruz
 if not GEMINI_API_KEY:
     GEMINI_API_KEY = "AQ.Ab8RN6K_wraDxTNfR-qaqeJHO40gdpJLWp3o8jWYnR3IYgi7PA"
 
-# str() ve .strip() ile şifrenin etrafındaki gizli boşlukları temizleyip metin olarak gönderiyoruz
 genai.configure(api_key=str(GEMINI_API_KEY).strip())
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-# Verilerin güvenle saklanacağı dosya
 DATA_FILE = "ajan_hafizasi.json"
 
-# Hafıza dosyasını yükle veya yoksa yedeklerden otomatik oluştur (Sıfırlanma Koruması)
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
         try:
@@ -59,34 +54,23 @@ def hafizayi_kaydet():
 # ==========================================
 def telegram_mesaj_gonder(mesaj):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    
-    # --- 4096 KARAKTER SINIRI KONTROLÜ VEYA PARÇALAMA ---
-    MAX_LEN = 4000  # Güvenli sınır
+    MAX_LEN = 4000  
     if len(mesaj) > MAX_LEN:
-        print(f"📦 Rapor çok uzun ({len(mesaj)} karakter). Parçalara bölünerek gönderiliyor...")
         parcalar = [mesaj[i:i+MAX_LEN] for i in range(0, len(mesaj), MAX_LEN)]
-        for i, parca in enumerate(parcalar):
-            print(f"📩 Parça {i+1} gönderiliyor...")
+        for parca in parcalar:
             telegram_mesaj_gonder(parca)
         return
 
-    # Normal gönderme mantığı
     payload = {"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "Markdown"}
     try: 
         res = requests.post(url, json=payload, timeout=10).json()
-        if res.get("ok"):
-            print("📡 Telegram Gönderim Durumu: True (Markdown)")
-            return
-            
-        # Markdown hatası verirse düz metin olarak dene
-        payload_duz = {"chat_id": CHAT_ID, "text": mesaj}
-        res_duz = requests.post(url, json=payload_duz, timeout=10).json()
-        print(f"📡 Telegram Gönderim Durumu: {res_duz.get('ok')} (Düz Metin Modu)")
+        if not res.get("ok"):
+            payload_duz = {"chat_id": CHAT_ID, "text": mesaj}
+            requests.post(url, json=payload_duz, timeout=10)
     except Exception as e: 
         print(f"⚠️ Telegram gönderme hatası: {e}")
 
 def telegram_komutlari_dinle():
-    """Telegram'dan gelen komutları anlık tarar ve uygular."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates"
     offset = HAFIZA.get("last_update_id", 0) + 1
     try:
@@ -101,13 +85,12 @@ def telegram_komutlari_dinle():
             text = message.get("text", "")
             chat_id = str(message.get("chat", {}).get("id", ""))
             
-            if chat_id != CHAT_ID: continue # Sadece senin hesabından gelen komutları dinler
+            if chat_id != CHAT_ID: continue 
             
             parcalar = text.split()
             if not parcalar: continue
             komut = parcalar[0].lower()
             
-            # --- KOMUT İŞLEME MANTIĞI ---
             if komut == "/takip_listesi":
                 if HAFIZA["takip_listesi"]:
                     liste = "\n".join([f"• `{h}`" for h in HAFIZA["takip_listesi"]])
@@ -126,7 +109,7 @@ def telegram_komutlari_dinle():
 
             elif komut == "/analiz":
                 telegram_mesaj_gonder("🔄 Anlık talep alındı. Küresel gündem ve indikatörler sentezleniyor, lütfen bekleyin...")
-                ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANLIK ANALİZ")
+                ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANLIK FİNANSAL ANALİZ")
 
             elif komut == "/takip_ekle" and len(parcalar) > 1:
                 hisse = parcalar[1].upper()
@@ -179,36 +162,34 @@ def dunya_gundemini_cek():
             haberler.append(f"- {item.title.text}")
     except: return "Haber akışı alınamadı."
     return "\n".join(haberler)
+
 def finansal_veri_topla(sembol):
     try:
-        # Veriyi 1 yıllık çekiyoruz ve MultiIndex karmaşasını sıfırlıyoruz
         df = yf.download(sembol, period="1y", progress=False)
         if df.empty: return None
         
-        # Eğer yfinance sütunları karmaşık getirdiyse düzeltiyoruz
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.droplevel(1)
             
-        # Sütun isimlerindeki olası boşlukları temizleyelim
         df.columns = [str(col).strip() for col in df.columns]
         
-        if 'Close' not in df.columns or len(df) < 15: return None
+        if 'Close' not in df.columns or len(df) < 50: return None
         
-        # Canlı fiyatı garantiye alıyoruz
         guncel_fiyat = float(df['Close'].iloc[-1])
-        
-        # İndikatörler için seriyi temiz bir şekilde besliyoruz
         close_series = df['Close'].astype(float)
+        
+        # Gelişmiş İndikatör Hesaplamaları (MACD, ADX, SMA ekledik reis)
         df['RSI'] = ta.momentum.rsi(close_series, window=14)
         df['SMA_50'] = ta.trend.sma_indicator(close_series, window=50)
         df['SMA_200'] = ta.trend.sma_indicator(close_series, window=200)
+        df['MACD'] = ta.trend.macd(close_series)
+        df['MACD_Signal'] = ta.trend.macd_signal(close_series)
+        df['ADX'] = ta.trend.adx(df['High'].squeeze(), df['Low'].squeeze(), close_series, window=14)
         
         ticker = yf.Ticker(sembol)
         info = {}
-        try:
-            info = ticker.info
-        except:
-            pass
+        try: info = ticker.info
+        except: pass
         
         portfoy_notu = "YOK"
         if sembol in HAFIZA["portfoy"]:
@@ -216,11 +197,20 @@ def finansal_veri_topla(sembol):
             kar_zarar = ((guncel_fiyat - p['maliyet']) / p['maliyet']) * 100
             portfoy_notu = f"KULLANICININ ELİNDE VAR! Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f}, Güncel Kâr/Zarar: %{kar_zarar:.2f}"
 
+        # İndikatör değerlerini metne döküyoruz
+        macd_val = df['MACD'].iloc[-1]
+        macd_sig = df['MACD_Signal'].iloc[-1]
+        macd_durum = "AL SİNYALİ" if macd_val > macd_sig else "SAT SİNYALİ"
+        adx_val = df['ADX'].iloc[-1]
+        adx_durum = "GÜÇLÜ TREND" if adx_val > 25 else "ZAYIF TREND / YATAY"
+
         return {
             "fiyat": guncel_fiyat,
-            "rsi": f"{df['RSI'].iloc[-1]:.2f}" if not pd.isna(df['RSI'].iloc[-1]) else "Veri Yok",
-            "sma_50": f"{df['SMA_50'].iloc[-1]:.2f}" if not pd.isna(df['SMA_50'].iloc[-1]) else "Veri Yok",
-            "sma_200": f"{df['SMA_200'].iloc[-1]:.2f}" if not pd.isna(df['SMA_200'].iloc[-1]) else "Veri Yok",
+            "rsi": f"{df['RSI'].iloc[-1]:.2f}",
+            "sma_50": f"{df['SMA_50'].iloc[-1]:.2f}",
+            "sma_200": f"{df['SMA_200'].iloc[-1]:.2f}",
+            "macd": f"{macd_durum} (MACD: {macd_val:.2f}, Sinyal: {macd_sig:.2f})",
+            "adx": f"{adx_durum} (ADX Değeri: {adx_val:.2f})",
             "fk": info.get('trailingPE', 'Veri Yok') if info else 'Veri Yok',
             "pddd": info.get('priceToBook', 'Veri Yok') if info else 'Veri Yok',
             "portfoy_durumu": portfoy_notu
@@ -229,35 +219,33 @@ def finansal_veri_topla(sembol):
         print(f"⚠️ {sembol} veri toplama hatası: {e}")
         return None
 
-
 def ajana_sentez_yaptir(gundem, piyasa_ozeti, rapor_tipi):
     prompt = f"""
-    Sen rasyonel, titiz ve finans biliminin kurallarına bağlı pratik bir finans ajanısın.
+    Sen rasyonel, titiz ve finans biliminin kurallarına bağlı profesyonel bir portföy yöneticisi ve finans ajanısın.
     
     RAPOR TÜRÜ: {rapor_tipi}
-    KÜRESEL GÜNDEM: {gundem}
-    VERİLER VE PORTFÖY BİLGİSİ: {piyasa_ozeti}
+    KÜRESEL GÜNDEM HABERLERİ: {gundem}
+    TEKNİK VERİLER VE PORTFÖY BİLGİSİ: {piyasa_ozeti}
     
-    ⚠️ KESİN KURALLAR (BU KURALLARA MİLİMETRİK UYMAK ZORUNDASIN):
-    1. ASLA UZUN VE SIKICI METİNLER YAZMA! Genel geçer, yuvarlak cümleler kurarak acemice yorumlar yapma. Sadede gel, net ol.
-    2. Her bir enstrümanı (SASA, KRDMB, THYAO vb.) başlıklar halinde ayır. Güncel fiyatını ve RSI değerini net olarak yaz.
-    3. Teknik verilere ve hareketli ortalamalara bakarak her hissenin trend yönünü açıkça "TREND: OLUMLU" veya "TREND: OLUMSUZ" şeklinde damgala.
-    4. Kullanıcının elindeki hisselerin adını geçirerek küresel risklerin bu şirketlere olası etkisini 1-2 cümleyle doğrudan ve keskin yorumla.
-    5. Raporu kısa, vurucu, tek bakışta ne olduğunu anlatan askeri bir disiplinle Türkçe sun.
+    ⚠️ KESİN KURALLAR (BU KURALLARA MİLİMETRİK UYULACAK):
+    1. ASLA UZUN VE SIKICI METİNLER YAZMA! Sadede gel, net ve kısa tut.
+    2. Her enstrümanı başlıklar halinde ayır. Güncel fiyat, RSI, MACD ve ADX durumlarını net belirt.
+    3. Teknik verilere bakarak her hissenin trend yönünü açıkça "TREND: OLUMLU" veya "TREND: OLUMSUZ" olarak damgala.
+    4. KONTROLLÜ TAHMİN MODÜLÜ (1 HAFTALIK ÖNGÖRÜ): Teknik indikatörlerin gücünü (RSI, MACD, ADX) ve "KÜRESEL GÜNDEM HABERLERİ"nin o sektöre etkisini bir potada erit. Eğer teknik yön güçlü ve haber akışı sektörü baltalamıyorsa, her iki durumu sentezleyerek "1 HAFTALIK ÖNGÖRÜ: Olumlu seyrin/düzeltmenin önümüzdeki 1 hafta boyunca sürmesi yüksek ihtimaldir" şeklinde rasyonel ve gerçekçi hibrit tahmin ekle. Kehanet yapma, sebebini açıkla.
+    5. Kullanıcının elindeki hisselerin adını geçirerek cüzdan durumuna ve küresel risklere göre keskin yorum yap.
+    6. Raporu askeri bir disiplinle Türkçe sun.
     """
     try: 
         return model.generate_content(prompt).text
     except Exception as e: 
         print(f"🔄 Birincil model hatası, yedek çağrılıyor... Hata: {e}")
         try:
-            # 404 hatası veren o eski sinsi "-latest" model adını buradan sildik reis! Ana modele eşitledik.
             alternatif_model = genai.GenerativeModel('gemini-2.5-flash')
             return alternatif_model.generate_content(prompt).text
         except Exception as ex:
             return f"🤖 Yapay zeka bağlantı hatası: {ex}"
 
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
-    print(f"🔄 [{rapor_tipi}] başlatıldı. Canlı veriler analiz ediliyor, lütfen bekleyin...")
     gundem = dunya_gundemini_cek()
     piyasa_ozeti = ""
     
@@ -267,6 +255,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
             piyasa_ozeti += f"\n📌 {sembol}\n" \
                             f"  - Fiyat: {veri['fiyat']:.2f} | RSI: {veri['rsi']}\n" \
                             f"  - MA50: {veri['sma_50']} | MA200: {veri['sma_200']}\n" \
+                            f"  - MACD Durumu: {veri['macd']} | Trend Gücü: {veri['adx']}\n" \
                             f"  - [YATIRIM DURUMU]: {veri['portfoy_durumu']}\n"
         else:
             portfoy_notu = "TAKİP LİSTESİNDE"
@@ -274,11 +263,15 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
                 p = HAFIZA["portfoy"][sembol]
                 portfoy_notu = f"KULLANICININ ELİNDE VAR! Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f} TL (Canlı fiyat çekilemedi)"
             
-            piyasa_ozeti += f"\n📌 {sembol}\n  - Fiyat/İndikatör: Veri çekilemedi veya piyasa kapalı.\n  - [YATIRIM DURUMU]: {portfoy_notu}\n"
-        time.sleep(1) # Sunucu koruma gecikmesi
+            piyasa_ozeti += f"\n📌 {sembol}\n  - Fiyat/İndikatör: Veri çekilemedi.\n  - [YATIRIM DURUMU]: {portfoy_notu}\n"
+        time.sleep(2) # Güvenli istek aralığı (THYAO kurtarma ayarı)
 
     ai_raporu = ajana_sentez_yaptir(gundem, piyasa_ozeti, rapor_tipi)
-    simdi = datetime.now().strftime('%d/%m/%Y %H:%M')
+    
+    # Render saatini tamamen Türkiye saatine kilitleyen akıllı zaman damgası
+    su_an_utc = dt.datetime.utcnow()
+    tr_saati = su_an_utc + dt.timedelta(hours=3)
+    simdi = tr_saati.strftime('%d/%m/%Y %H:%M')
     
     final_mesaj = f"📊 **AKILLI PORTFÖY VE ANALİZ RAPORU** 📊\n🗓️ *Saat:* {simdi}\n" \
                   f"───────────────\n{ai_raporu}"
@@ -294,22 +287,27 @@ def run_dummy_server():
     server.serve_forever()
 
 if __name__ == "__main__":
-    # Sahte sunucuyu arka planda başlatıp Render'ı ayakta tutuyoruz
     threading.Thread(target=run_dummy_server, daemon=True).start()
     
     print("🚀 Borsa Ajanı başarıyla başlatıldı. Komutlar anlık dinleniyor...")
-    telegram_mesaj_gonder("🤖 *Borsa Analist Ajanı Render Üzerinde Aktif!* \n\nYeni komutları test etmek için hemen `/yardim` yazabilirsiniz.")
     
-    # Başlangıç test analizi
-    ajani_calistir(rapor_tipi="ANLIK BAĞLANTI VE SİSTEM TESTİ")
-    
+    # Akıllı döngü başlangıcı
     while True:
         telegram_komutlari_dinle()
         
-        su_an = datetime.now().strftime("%H:%M:%S")
-        if su_an == "11:00:00":
-            ajani_calistir(rapor_tipi="SABAH AÇILIŞ VE PORTFÖY RİSK KONTROLÜ")
-        elif su_an == "18:30:00":
-            ajani_calistir(rapor_tipi="AKŞAM KAPANIŞ VE MALİYET DEĞERLENDİRMESİ")
+        # Render sunucusunun saatini Türkiye (Bursa) saatine senkronize ediyoruz reis
+        su_an_utc = dt.datetime.utcnow()
+        tr_saati = su_an_utc + dt.timedelta(hours=3)
+        
+        saat_dakika = tr_saati.strftime("%H:%M")
+        saniye = tr_saati.strftime("%S")
+        
+        # Saniyeyi sabitleyip sadece "dakika" eşleştiğinde 1 kez çalışmasını sağlıyoruz (Saat hatası çözümü)
+        if saniye == "00":
+            if saat_dakika == "11:00":
+                ajani_calistir(rapor_tipi="SABAH AÇILIŞ VE PORTFÖY RİSK KONTROLÜ")
+            elif saat_dakika == "18:30":
+                ajani_calistir(rapor_tipi="AKŞAM KAPANIŞ VE MALİYET DEĞERLENDİRMESİ")
             
         time.sleep(2)
+        
