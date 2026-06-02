@@ -16,8 +16,8 @@ from datetime import datetime
 # ==========================================
 # Sunucu resetlense bile portföyün sıfırlanmaması için ana yedeğin burası:
 PORTFOY_YEDEK = {
-    "SASA.IS": {"lot": 1000, "maliyet": 45.50},   # Midas'taki gerçek lot ve bölünmüş ortalama maliyetini buraya yaz reis
-    "KRDMB.IS": {"lot": 500, "maliyet": 22.10}    # Midas'taki gerçek lot ve bölünmüş ortalama maliyetini buraya yaz reis
+    "SASA.IS": {"lot": 19, "maliyet": 3.65},   # Midas'taki gerçek lot ve bölünmüş ortalama maliyetini buraya yaz reis
+    "KRDMB.IS": {"lot": 13, "maliyet": 96.35}    # Midas'taki gerçek lot ve bölünmüş ortalama maliyetini buraya yaz reis
 }
 TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS"]
 
@@ -312,4 +312,4 @@ if __name__ == "__main__":
         elif su_an == "18:30:00":
             ajani_calistir(rapor_tipi="AKŞAM KAPANIŞ VE MALİYET DEĞERLENDİRMESİ")
             
-        time.sleep(1)
+        time.sleep(2)
