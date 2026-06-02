@@ -1,4 +1,4 @@
-  import os
+import os
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 import threading
 import time
@@ -66,13 +66,11 @@ def hafizayi_kaydet():
 # 📊 TEK BİR HİSSE İÇİN ANLIK RESMİ VERİ ÇEKİCİ
 # ==========================================
 def tek_hisse_resmi_veri_cek(sembol):
-    """Yeni eklenen veya guncellenmek istenen tek bir hissenin rasyolarini resmi sunuculardan anlik ceker"""
     if not sembol.endswith(".IS"):
         return False
         
     hisse_kodu = sembol.split(".")[0]
     try:
-        # Kaynak 1: API Servisi
         api_url = f"https://api.frayzer.com/v1/financials/bist/{hisse_kodu}"
         response = requests.get(api_url, timeout=8)
         
@@ -81,7 +79,8 @@ def tek_hisse_resmi_veri_cek(sembol):
             fk = str(data.get("fk", "-"))
             pddd = str(data.get("pddd", "-"))
             if fk != "-" and pddd != "-":
-                if "temel_veriler" not in HAFIZA: HAFIZA["temel_veriler"] = {}
+                if "temel_veriler" not in HAFIZA: 
+                    HAFIZA["temel_veriler"] = {}
                 HAFIZA["temel_veriler"][sembol] = {
                     "fk": f"{float(fk):.2f}",
                     "pddd": f"{float(pddd):.2f}",
@@ -90,7 +89,6 @@ def tek_hisse_resmi_veri_cek(sembol):
                 }
                 return True
 
-        # Kaynak 2: Is Yatirim Sirket Karti Kaziyici (Yedek)
         url = f"https://www.isyatirim.com.tr/tr-tr/analiz/hisse/Sayfalar/Sirket-Karti.aspx?hisse={hisse_kodu}"
         res = requests.get(url, timeout=8)
         soup = BeautifulSoup(res.text, "html.parser")
@@ -102,7 +100,8 @@ def tek_hisse_resmi_veri_cek(sembol):
             fk_val = fk_td.find_next_sibling("td").text.strip().replace(",", ".")
             pddd_val = pddd_td.find_next_sibling("td").text.strip().replace(",", ".")
             
-            if "temel_veriler" not in HAFIZA: HAFIZA["temel_veriler"] = {}
+            if "temel_veriler" not in HAFIZA: 
+                HAFIZA["temel_veriler"] = {}
             HAFIZA["temel_veriler"][sembol] = {
                 "fk": fk_val,
                 "pddd": pddd_val,
@@ -115,7 +114,6 @@ def tek_hisse_resmi_veri_cek(sembol):
     return False
 
 def resmi_kaynaktan_temel_veri_guncelle():
-    """Güvenilir api ve borsa veri saglayicilarindan toplu temel rasyolari cekip hafizaya yazar"""
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
     guncellenenler = []
     
@@ -155,7 +153,8 @@ def telegram_komutlari_dinle():
     offset = HAFIZA.get("last_update_id", 0) + 1
     try:
         response = requests.get(url, params={"offset": offset, "timeout": 20}, timeout=25).json()
-        if not response.get("result"): return
+        if not response.get("result"): 
+            return
         
         for update in response["result"]:
             HAFIZA["update_id"] = update["update_id"]
@@ -166,10 +165,12 @@ def telegram_komutlari_dinle():
             text = message.get("text", "")
             chat_id = str(message.get("chat", {}).get("id", ""))
             
-            if chat_id != CHAT_ID: continue 
+            if chat_id != CHAT_ID: 
+                continue 
             
             parcalar = text.split()
-            if not parcalar: continue
+            if not parcalar: 
+                continue
             komut = parcalar[0].lower()
             
             if komut == "/takip_listesi":
@@ -198,9 +199,8 @@ def telegram_komutlari_dinle():
                     HAFIZA["takip_listesi"].append(hisse)
                     telegram_mesaj_gonder(f"⏳ `{hisse}` takip listesine alınıyor ve resmi rasyoları anlık sorgulanıyor...")
                     
-                    # 🎯 REİS BURASI OTOMATİK TANIMLAMA NOKTASI: Hisse eklenir eklenmez rasyolari resmi sunucudan çekiliyor
                     if tek_hisse_resmi_veri_cek(hisse):
-                        telegram_mesaj_gonder(f"✅ `{hisse}` başarıyla eklendi! Resmi borsa rasyoları (F/K, PD/DD) otomatik tanımlandı ve hafızaya mühürlendi.")
+                        telegram_mesaj_gonder(f"✅ `{hisse}` başarıyla eklendi! Resmi borsa rasyoları (F/K, PD/DD) otomatik tanımlandı.")
                     else:
                         telegram_mesaj_gonder(f"✅ `{hisse}` listeye eklendi ancak şu an borsa sunucusundan anlık rasyo dönmedi. Gece 23:30 otomatiğinde tekrar denenecek.")
                     hafizayi_kaydet()
@@ -211,8 +211,10 @@ def telegram_komutlari_dinle():
                 hisse = parcalar[1].upper()
                 if hisse in HAFIZA["takip_listesi"]:
                     HAFIZA["takip_listesi"].remove(hisse)
-                    if hisse in HAFIZA["portfoy"]: del HAFIZA["portfoy"][hisse]
-                    if "temel_veriler" in HAFIZA and hisse in HAFIZA["temel_veriler"]: del HAFIZA["temel_veriler"][hisse]
+                    if hisse in HAFIZA["portfoy"]: 
+                        del HAFIZA["portfoy"][hisse]
+                    if "temel_veriler" in HAFIZA and hisse in HAFIZA["temel_veriler"]: 
+                        del HAFIZA["temel_veriler"][hisse]
                     hafizayi_kaydet()
                     telegram_mesaj_gonder(f"❌ `{hisse}` takip listesinden, portföyden ve rasyo hafızasından tamamen çıkarıldı.")
                     
@@ -226,14 +228,15 @@ def telegram_komutlari_dinle():
                         HAFIZA["takip_listesi"].append(hisse)
                         tek_hisse_resmi_veri_cek(hisse)
                     hafizayi_kaydet()
-                    telegram_mesaj_gonder(f"💰 Portföy Güncellendi:\n`{hisse}`: {lot} Lot | Maliyet: {maliyet} TL (Rasyoları da otomatik kontrol edildi).")
+                    telegram_mesaj_gonder(f"💰 Portföy Güncellendi:\n`{hisse}`: {lot} Lot | Maliyet: {maliyet} TL.")
                 except:
                     telegram_mesaj_gonder("⚠️ Hatalı format. Örnek: `/portfoy_ekle TUPRS.IS 100 165.50`")
             
             elif komut == "/temel_guncelle" and len(parcalar) > 5:
                 hisse = parcalar[1].upper()
                 try:
-                    if "temel_veriler" not in HAFIZA: HAFIZA["temel_veriler"] = {}
+                    if "temel_veriler" not in HAFIZA: 
+                        HAFIZA["temel_veriler"] = {}
                     HAFIZA["temel_veriler"][hisse] = {
                         "fk": parcalar[2],
                         "pddd": parcalar[3],
@@ -273,7 +276,8 @@ def dunya_gundemini_cek():
         soup = BeautifulSoup(response.content, features="xml")
         for item in soup.find_all('item')[:12]:
             haberler.append(f"- {item.title.text}")
-    except: return "Haber akışı alınamadı."
+    except: 
+        return "Haber akışı alınamadı."
     return "\n".join(haberler)
 
 def finansal_veri_topla(sembol):
@@ -424,4 +428,4 @@ if __name__ == "__main__":
             elif saat_dakika == "23:30":
                 resmi_kaynaktan_temel_veri_guncelle()
             
-        time.sleep(2)     
+        time.sleep(2)
