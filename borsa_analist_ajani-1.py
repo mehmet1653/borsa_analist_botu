@@ -424,4 +424,4 @@ if __name__ == "__main__":
             elif saat_dakika == "23:30":
                 resmi_kaynaktan_temel_veri_guncelle()
             
-        time.sleep(1)     
+        time.sleep(2)     
