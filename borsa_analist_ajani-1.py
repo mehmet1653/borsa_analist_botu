@@ -179,23 +179,36 @@ def dunya_gundemini_cek():
             haberler.append(f"- {item.title.text}")
     except: return "Haber akışı alınamadı."
     return "\n".join(haberler)
-
 def finansal_veri_topla(sembol):
     try:
-        # Sunucu limitine takılmamak için yfinance indirme yapısını tekli moda çektik reis
-        df = yf.download(sembol, period="1y", group_by="ticker", threads=False, progress=False)
+        # Veriyi 1 yıllık çekiyoruz ve MultiIndex karmaşasını sıfırlıyoruz
+        df = yf.download(sembol, period="1y", progress=False)
         if df.empty: return None
         
+        # Eğer yfinance sütunları karmaşık getirdiyse düzeltiyoruz
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(1)
+            
+        # Sütun isimlerindeki olası boşlukları temizleyelim
+        df.columns = [str(col).strip() for col in df.columns]
+        
+        if 'Close' not in df.columns or len(df) < 15: return None
+        
+        # Canlı fiyatı garantiye alıyoruz
         guncel_fiyat = float(df['Close'].iloc[-1])
         
-        # İndikatör hesaplamaları
-        close_series = df['Close'].squeeze()
+        # İndikatörler için seriyi temiz bir şekilde besliyoruz
+        close_series = df['Close'].astype(float)
         df['RSI'] = ta.momentum.rsi(close_series, window=14)
         df['SMA_50'] = ta.trend.sma_indicator(close_series, window=50)
         df['SMA_200'] = ta.trend.sma_indicator(close_series, window=200)
         
         ticker = yf.Ticker(sembol)
-        info = ticker.info
+        info = {}
+        try:
+            info = ticker.info
+        except:
+            pass
         
         portfoy_notu = "YOK"
         if sembol in HAFIZA["portfoy"]:
@@ -205,16 +218,17 @@ def finansal_veri_topla(sembol):
 
         return {
             "fiyat": guncel_fiyat,
-            "rsi": f"{df['RSI'].iloc[-1]:.2f}",
-            "sma_50": f"{df['SMA_50'].iloc[-1]:.2f}",
-            "sma_200": f"{df['SMA_200'].iloc[-1]:.2f}",
-            "fk": info.get('trailingPE', 'Veri Yok'),
-            "pddd": info.get('priceToBook', 'Veri Yok'),
+            "rsi": f"{df['RSI'].iloc[-1]:.2f}" if not pd.isna(df['RSI'].iloc[-1]) else "Veri Yok",
+            "sma_50": f"{df['SMA_50'].iloc[-1]:.2f}" if not pd.isna(df['SMA_50'].iloc[-1]) else "Veri Yok",
+            "sma_200": f"{df['SMA_200'].iloc[-1]:.2f}" if not pd.isna(df['SMA_200'].iloc[-1]) else "Veri Yok",
+            "fk": info.get('trailingPE', 'Veri Yok') if info else 'Veri Yok',
+            "pddd": info.get('priceToBook', 'Veri Yok') if info else 'Veri Yok',
             "portfoy_durumu": portfoy_notu
         }
     except Exception as e:
         print(f"⚠️ {sembol} veri toplama hatası: {e}")
         return None
+
 
 def ajana_sentez_yaptir(gundem, piyasa_ozeti, rapor_tipi):
     prompt = f"""
