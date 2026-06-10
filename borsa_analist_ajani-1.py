@@ -9,7 +9,7 @@ import pandas as pd
 import ta
 import google.generativeai as genai
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 import datetime as dt
 
 # ==========================================
@@ -29,7 +29,7 @@ PORTFOY_YEDEK = {
     "SASA.IS": {"lot": 19, "maliyet": 3.65},   
     "KRDMB.IS": {"lot": 13, "maliyet": 96.35}   
 }
-TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS", "ASTOR.IS", "KCHOL.IS", "MRGYO.IS"]
+TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS", "ASTOR.IS", "KCHOL.IS", "MRGYO.IS", "BTC-USD"]
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -47,16 +47,17 @@ if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
         try:
             HAFIZA = json.load(f)
-            if "temel_veriler" not in HAFIZA:
-                HAFIZA["temel_veriler"] = TEMEL_VERILER_YEDEK
         except:
-            HAFIZA = {"takip_listesi": TAKIP_YEDEK, "portfoy": PORTFOY_YEDEK, "temel_veriler": TEMEL_VERILER_YEDEK}
+            HAFIZA = {}
 else:
-    HAFIZA = {
-        "takip_listesi": TAKIP_YEDEK,
-        "portfoy": PORTFOY_YEDEK,
-        "temel_veriler": TEMEL_VERILER_YEDEK
-    }
+    HAFIZA = {}
+
+# Eksik anahtarları güvenli şekilde tamamla
+if "takip_listesi" not in HAFIZA: HAFIZA["takip_listesi"] = TAKIP_YEDEK
+if "portfoy" not in HAFIZA: HAFIZA["portfoy"] = PORTFOY_YEDEK
+if "temel_veriler" not in HAFIZA: HAFIZA["temel_veriler"] = TEMEL_VERILER_YEDEK
+if "tahmin_gunlugu" not in HAFIZA: HAFIZA["tahmin_gunlugu"] = {}
+if "ogrenilen_dersler" not in HAFIZA: HAFIZA["ogrenilen_dersler"] = []
 
 def hafizayi_kaydet():
     with open(DATA_FILE, "w") as f:
@@ -79,8 +80,6 @@ def tek_hisse_resmi_veri_cek(sembol):
             fk = str(data.get("fk", "-"))
             pddd = str(data.get("pddd", "-"))
             if fk != "-" and pddd != "-":
-                if "temel_veriler" not in HAFIZA: 
-                    HAFIZA["temel_veriler"] = {}
                 HAFIZA["temel_veriler"][sembol] = {
                     "fk": f"{float(fk):.2f}",
                     "pddd": f"{float(pddd):.2f}",
@@ -100,8 +99,6 @@ def tek_hisse_resmi_veri_cek(sembol):
             fk_val = fk_td.find_next_sibling("td").text.strip().replace(",", ".")
             pddd_val = pddd_td.find_next_sibling("td").text.strip().replace(",", ".")
             
-            if "temel_veriler" not in HAFIZA: 
-                HAFIZA["temel_veriler"] = {}
             HAFIZA["temel_veriler"][sembol] = {
                 "fk": fk_val,
                 "pddd": pddd_val,
@@ -190,20 +187,17 @@ def telegram_komutlari_dinle():
                     telegram_mesaj_gonder("💰 Portföyünüzde henüz kayıtlı varlık yok.")
 
             elif komut == "/analiz":
-                telegram_mesaj_gonder("🔄 Anlık talep alındı. Küresel gündem, indikatörler ve resmi hafızadaki temel veriler birleştiriliyor, lütfen bekleyin...")
+                telegram_mesaj_gonder("🔄 Anlık talep alındı. Küresel gündem, indikatörler, geçmiş tecrübeler ve resmi temel veriler birleştiriliyor...")
                 ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANLIK FİNANSAL ANALİZ")
 
             elif komut == "/takip_ekle" and len(parcalar) > 1:
                 hisse = parcalar[1].upper()
                 if hisse not in HAFIZA["takip_listesi"]:
                     HAFIZA["takip_listesi"].append(hisse)
-                    telegram_mesaj_gonder(f"⏳ `{hisse}` takip listesine alınıyor ve resmi rasyoları anlık sorgulanıyor...")
-                    
-                    if tek_hisse_resmi_veri_cek(hisse):
-                        telegram_mesaj_gonder(f"✅ `{hisse}` başarıyla eklendi! Resmi borsa rasyoları (F/K, PD/DD) otomatik tanımlandı.")
-                    else:
-                        telegram_mesaj_gonder(f"✅ `{hisse}` listeye eklendi ancak şu an borsa sunucusundan anlık rasyo dönmedi. Gece 23:30 otomatiğinde tekrar denenecek.")
+                    telegram_mesaj_gonder(f"⏳ `{hisse}` takip listesine alınıyor...")
+                    tek_hisse_resmi_veri_cek(hisse)
                     hafizayi_kaydet()
+                    telegram_mesaj_gonder(f"✅ `{hisse}` başarıyla eklendi!")
                 else:
                     telegram_mesaj_gonder(f"ℹ️ `{hisse}` zaten takip listenizde mevcut.")
                     
@@ -211,57 +205,15 @@ def telegram_komutlari_dinle():
                 hisse = parcalar[1].upper()
                 if hisse in HAFIZA["takip_listesi"]:
                     HAFIZA["takip_listesi"].remove(hisse)
-                    if hisse in HAFIZA["portfoy"]: 
-                        del HAFIZA["portfoy"][hisse]
-                    if "temel_veriler" in HAFIZA and hisse in HAFIZA["temel_veriler"]: 
-                        del HAFIZA["temel_veriler"][hisse]
+                    if hisse in HAFIZA["portfoy"]: del HAFIZA["portfoy"][hisse]
                     hafizayi_kaydet()
-                    telegram_mesaj_gonder(f"❌ `{hisse}` takip listesinden, portföyden ve rasyo hafızasından tamamen çıkarıldı.")
-                    
-            elif komut == "/portfoy_ekle" and len(parcalar) > 3:
-                hisse = parcalar[1].upper()
-                try:
-                    lot = int(parcalar[2])
-                    maliyet = float(parcalar[3])
-                    HAFIZA["portfoy"][hisse] = {"lot": lot, "maliyet": maliyet}
-                    if hisse not in HAFIZA["takip_listesi"]: 
-                        HAFIZA["takip_listesi"].append(hisse)
-                        tek_hisse_resmi_veri_cek(hisse)
-                    hafizayi_kaydet()
-                    telegram_mesaj_gonder(f"💰 Portföy Güncellendi:\n`{hisse}`: {lot} Lot | Maliyet: {maliyet} TL.")
-                except:
-                    telegram_mesaj_gonder("⚠️ Hatalı format. Örnek: `/portfoy_ekle TUPRS.IS 100 165.50`")
-            
-            elif komut == "/temel_guncelle" and len(parcalar) > 5:
-                hisse = parcalar[1].upper()
-                try:
-                    if "temel_veriler" not in HAFIZA: 
-                        HAFIZA["temel_veriler"] = {}
-                    HAFIZA["temel_veriler"][hisse] = {
-                        "fk": parcalar[2],
-                        "pddd": parcalar[3],
-                        "ihracat": f"%{parcalar[4].replace('%','')}",
-                        "ozsermaye_kar": f"%{parcalar[5].replace('%','')}"
-                    }
-                    hafizayi_kaydet()
-                    telegram_mesaj_gonder(f"✅ `{hisse}` için Temel İstatistikler Elle Güncellendi!\nF/K: {parcalar[2]} | PD/DD: {parcalar[3]}")
-                except Exception as e:
-                    telegram_mesaj_gonder("⚠️ Format: `/temel_guncelle ASTOR.IS FK PDDD IHRACAT_ORANI OZSERMAYE_KAR`")
+                    telegram_mesaj_gonder(f"❌ `{hisse}` takip listesinden çıkarıldı.")
 
-            elif komut == "/resmi_guncelle":
-                telegram_mesaj_gonder("⏳ Tüm takip listesi için resmi borsa sunucularına bağlanılıyor, rasyolar anlık tazeleniyor...")
-                resmi_kaynaktan_temel_veri_guncelle()
-
-            elif komut == "/yardim":
-                telegram_mesaj_gonder("🤖 *Ajan Komutları:*\n\n"
-                                      "🚀 `/analiz` - Kusursuz entegre raporu üretir.\n"
-                                      "🔄 `/resmi_guncelle` - Rasyoları anlık resmi kaynaktan tazeler.\n"
-                                      "🔍 `/takip_listesi` - Tüm takip listenizi listeler.\n"
-                                      "💰 `/portfoy_goster` - Elinizdeki varlıkları listeler.\n"
-                                      "➕ `/takip_ekle HISSE.IS` - Otomatik resmi rasyolarıyla listeye yeni hisse ekler.\n"
-                                      "➖ `/takip_cikar HISSE.IS` - Listeden hisse siler.\n"
-                                      "👑 `/portfoy_ekle HISSE.IS LOT MALİYET` - Portföye ekleme yapar.\n"
-                                      "📊 `/temel_guncelle HISSE.IS FK PDDD IHRACAT ÖZSERMAYE` - Şirket rasyolarını elle günceller.")
+            elif komut == "/hafiza_temizle":
+                HAFIZA["ogrenilen_dersler"] = []
+                HAFIZA["tahmin_gunlugu"] = {}
+                hafizayi_kaydet()
+                telegram_mesaj_gonder("🧠 Yapay zeka tecrübe hafızası sıfırlandı.")
     except Exception as e:
         print(f"Komut dinleme hatası: {e}")
 
@@ -281,11 +233,16 @@ def dunya_gundemini_cek():
     return "\n".join(haberler)
 
 def finansal_veri_topla(sembol):
+    # Yahoo finance düzeltmesi (.IS veya kripto uyumluluğu)
+    target_sembol = sembol
+    if ".IS" not in sembol and "-" not in sembol and sembol != "GC=F" and sembol != "USDTRY=X":
+        target_sembol = f"{sembol}-USD" # Hatalı kriptoları otomatik çevir
+
     for deneme in range(3):
         try:
-            df = yf.download(sembol, period="1y", progress=False)
-            if df.empty or 'Close' not in df.columns or len(df) < 50:
-                time.sleep(1.5)
+            df = yf.download(target_sembol, period="1y", progress=False)
+            if df.empty or 'Close' not in df.columns or len(df) < 30:
+                time.sleep(1)
                 continue
                 
             if isinstance(df.columns, pd.MultiIndex):
@@ -298,7 +255,6 @@ def finansal_veri_topla(sembol):
             
             df['RSI'] = ta.momentum.rsi(close_series, window=14)
             df['SMA_50'] = ta.trend.sma_indicator(close_series, window=50)
-            df['SMA_200'] = ta.trend.sma_indicator(close_series, window=200)
             df['MACD'] = ta.trend.macd(close_series)
             df['MACD_Signal'] = ta.trend.macd_signal(close_series)
             df['ADX'] = ta.trend.adx(df['High'].squeeze(), df['Low'].squeeze(), close_series, window=14)
@@ -321,7 +277,6 @@ def finansal_veri_topla(sembol):
                 "fiyat": guncel_fiyat,
                 "rsi": f"{df['RSI'].iloc[-1]:.2f}",
                 "sma_50": f"{df['SMA_50'].iloc[-1]:.2f}",
-                "sma_200": f"{df['SMA_200'].iloc[-1]:.2f}",
                 "macd": f"{macd_durum}",
                 "adx": f"{adx_durum} ({adx_val:.2f})",
                 "fk": temel.get("fk", "-"),
@@ -331,47 +286,22 @@ def finansal_veri_topla(sembol):
                 "portfoy_durumu": portfoy_notu
             }
         except Exception as e:
-            print(f"⚠️ {sembol} veri çekme denemesi {deneme+1} başarısız: {e}")
-            time.sleep(2)
+            print(f"⚠️ {sembol} veri çekme hatası: {e}")
+            time.sleep(1)
             
     return None
 
-def ajana_sentez_yaptir(gundem, piyasa_ozeti, rapor_tipi):
-    prompt = f"""
-    Sen rasyonel, titiz ve finans biliminin kurallarına bağlı profesyonel bir portföy yöneticisi ve finans ajanısın.
-    
-    RAPOR TÜRÜ: {rapor_tipi}
-    KÜRESEL GÜNDEM HABERLERİ: {gundem}
-    TEKNİK VE TEMEL HAM VERİLER: {piyasa_ozeti}
-    
-    ⚠️ KESİN KURALLAR (BU KURALLARA MİLİMETRİK UYULACAK):
-    1. ASLA RAPOR FORMATINI BOZMA, GEREKSİZ PARAGRAFLAR EKLEME!
-    2. Her enstrümanı tam olarak şu madde nizamında listele:
-    
-    ---
-    
-    ### [HİSSE ADI]
-    * Fiyat: [Fiyat] | RSI: [RSI] | MACD: [MACD]
-    * F/K: [F/K] | PD/DD: [PD/DD] | İhracat Oranı: [İhracat Oranı] | Özsermaye Kârlılığı: [Özsermaye Kârlılığı] | Trend Gücü: [Trend Gücü]
-    * TREND: [OLUMLU veya OLUMSUZ] (Fiyat MA50'nin üstündeyse OLUMLU, altındaysa OLUMSUZ damgası vur)
-    * Yorum: Küresel gündem başlıkları ile teknik ve temel verileri harmanlayarak cüzdan durumuna göre 1-2 cümlelik keskin yorum yap.
-    * 📌 1 HAFTALIK ÖNGÖRÜ: Teknik göstergelerin yönü, temel rasyoların gücü ve küresel haberleri harmanlayarak "Mevcut momentum, finansal rasyolar ve haber akışı korunduğu sürece önümüzdeki 1 hafta boyunca [olumlu seyrin/düzeltmenin/yatay seyrin] sürmesi beklenmektedir" şeklinde kısa vadeli nokta atışı tahmini ekle.
-    
-    3. Cüzdandaki varlıklar için "[YATIRIM DURUMU]: KULLANICININ ELİNDE VAR!" ibaresini başlığın yanına göm ve kar/zarar yüzdesini rapora yansıt.
-    4. Döviz veya Altın (USDTRY=X, GC=F) gibi enstrümanlarda F/K, PD/DD, İhracat gibi şirket rasyolarına çizgi (-) çek geç.
-    5. Raporu tamamen Türkçe ve harika bir scannable düzenle sun.
-    """
-    try: 
-        return model.generate_content(prompt).text
-    except Exception as e: 
-        return f"🤖 Yapay zeka bağlantı hatası: {e}"
-
+# ==========================================
+# 🧠 ÖZ-YANSITMALI YAPAY ZEKA VE ÖĞRENME MOTORU
+# ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     su_an_utc = dt.datetime.utcnow()
     tr_saati = su_an_utc + dt.timedelta(hours=3)
+    bugun_str = tr_saati.strftime('%Y-%m-%d')
 
     gundem = dunya_gundemini_cek()
     piyasa_ozeti = ""
+    anlik_tahmin_verisi = {}
     
     for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
@@ -381,21 +311,104 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
                             f"  - MA50: {veri['sma_50']} | Trend Gücü: {veri['adx']}\n" \
                             f"  - Temel -> F/K: {veri['fk']} | PD/DD: {veri['pddd']} | İhracat: {veri['ihracat']} | Özsermaye Kâr: {veri['ozsermaye_kar']}\n" \
                             f"  - [YATIRIM DURUMU]: {veri['portfoy_durumu']}\n"
-        else:
-            portfoy_notu = "TAKİP LİSTESİNDE"
-            if sembol in HAFIZA["portfoy"]:
-                p = HAFIZA["portfoy"][sembol]
-                portfoy_notu = f"KULLANICININ ELİNDE VAR! Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f} TL (Canlı fiyat çekilemedi)"
             
-            piyasa_ozeti += f"\n📌 {sembol}\n  - Fiyat/İndikatör: Veri çekilemedi.\n  - [YATIRIM DURUMU]: {portfoy_notu}\n"
-        time.sleep(2)
+            # Kendi kendini eğitmek için veriyi logla
+            anlik_tahmin_verisi[sembol] = {
+                "fiyat": veri['fiyat'],
+                "rsi": veri['rsi'],
+                "macd": veri['macd'],
+                "ma50": veri['sma_50']
+            }
+        time.sleep(1)
 
-    ai_raporu = ajana_sentez_yaptir(gundem, piyasa_ozeti, rapor_tipi)
-    simdi = tr_saati.strftime('%d/%m/%Y %H:%M')
+    # Geçmiş tecrübeleri prompta ekle
+    tecrubeler_metni = ""
+    if HAFIZA["ogrenilen_dersler"]:
+        tecrubeler_metni = "\n🧠 GEÇMİŞ HATALARDAN ÖĞRENİLEN DERSLER VE SENSEİ KURALLARI:\n"
+        for d in HAFIZA["ogrenilen_dersler"][-7:]: # Son 7 dersi baz al
+            tecrubeler_metni += f"- {d['ders']}\n"
+
+    prompt = f"""
+    Sen rasyonel, geçmiş hatalarından ders çıkaran profesyonel bir finans yapay zekasısın.
     
-    final_mesaj = f"📊 **AKILLI PORTFÖY VE ANALİZ RAPORU** 📊\n🗓️ *Saat:* {simdi}\n" \
-                  f"───────────────\n{ai_raporu}"
-    telegram_mesaj_gonder(final_mesaj)
+    RAPOR TÜRÜ: {rapor_tipi}
+    KÜRESEL GÜNDEM HABERLERİ: {gundem}
+    TEKNİK VE TEMEL HAM VERİLER: {piyasa_ozeti}
+    {tecrubeler_metni}
+    
+    ⚠️ KESİN KURALLAR:
+    1. Geçmiş dersleri göz önüne alarak daha temkinli ve gerçekçi yorum yap.
+    2. Eğer bir hisse MA50'nin üzerindeyse ama MACD SAT veriyorsa veya RSI aşırı şişmişse körü körüne OLUMLU deme, düzeltme uyarısı yap.
+    3. Her enstrümanı tam olarak şu madde nizamında sun:
+    
+    ---
+    ### [HİSSE ADI]
+    * Fiyat: [Fiyat] | RSI: [RSI] | MACD: [MACD]
+    * F/K: [F/K] | PD/DD: [PD/DD] | İhracat Oranı: [İhracat Oranı] | Özsermaye Kârlılığı: [Özsermaye Kârlılığı]
+    * TREND: [OLUMLU / OLUMSUZ / TEMKİNLİ]
+    * Yorum: Teknik, temel ve küresel gündemi birleştirip 1-2 cümlelik keskin yorum yap.
+    * 📌 1 HAFTALIK ÖNGÖRÜ: "Mevcut momentum, finansal rasyolar ve haber akışı korunduğu sürece önümüzdeki 1 hafta boyunca [olumlu seyrin/düzeltmenin/yatay seyrin] sürmesi beklenmektedir" şablonuna sadık kal.
+    """
+    
+    try: 
+        ai_raporu = model.generate_content(prompt).text
+        
+        # Bugünün tahminini hafızaya ekle
+        HAFIZA["tahmin_gunlugu"][bugun_str] = {
+            "piyasa_durumu": anlik_tahmin_verisi,
+            "ai_raporu_kesiti": ai_raporu[:1000] # Hafıza şişmesin diye özet kesit
+        }
+        hafizayi_kaydet()
+        
+        simdi = tr_saati.strftime('%d/%m/%Y %H:%M')
+        final_mesaj = f"📊 **AKILLI PORTFÖY VE ANALİZ RAPORU** 📊\n🗓️ *Saat:* {simdi}\n───────────────\n{ai_raporu}"
+        telegram_mesaj_gonder(final_mesaj)
+    except Exception as e: 
+        telegram_mesaj_gonder(f"🤖 Yapay zeka sentez hatası: {e}")
+
+def ajan_kendi_kendini_egit():
+    print("🧠 Yapay zeka öz-yansıtma ve eğitim modülü çalışıyor...")
+    su_an_utc = dt.datetime.utcnow()
+    tr_saati = su_an_utc + dt.timedelta(hours=3)
+    
+    # 7 gün önceki tarihi bul
+    gecmis_tarih = (tr_saati - timedelta(days=7)).strftime('%Y-%m-%d')
+    
+    if gecmis_tarih not in HAFIZA["tahmin_gunlugu"]:
+        print("ℹ️ Geriye dönük değerlendirme için yeterli veri henüz yok.")
+        return
+
+    gecmis_data = HAFIZA["tahmin_gunlugu"][gecmis_tarih]
+    bugunku_fiyatlar = {}
+    
+    for sembol in gecmis_data["piyasa_durumu"].keys():
+        veri = finansal_veri_topla(sembol)
+        if veri:
+            bugunku_fiyatlar[sembol] = veri["fiyat"]
+            
+    prompt = f"""
+    Sen kendi kararlarını denetleyen ve kendi kendini eğiten finansal bir yapay zekasın.
+    7 Gün Önceki Tahmin Verilerin ve Fiyatların: {json.dumps(gecmis_data['piyasa_durumu'])}
+    Bugün Gerçekleşen Güncel Fiyatlar: {json.dumps(bugunku_fiyatlar)}
+    7 Gün Önce Yaptığın Yorum Özeti: {gecmis_data['ai_raporu_kesiti']}
+    
+    Görevin: Geçmiş tahminlerini gerçek piyasa sonuçlarıyla acımasızca karşılaştır. 
+    Özellikle yönünü (Yükseliş/Düşüş/Yatay) yanlış bildiğin enstrümanları tespit et. 
+    Hangi indikatörü (RSI, MACD, MA50) yanlış yorumladığını veya neyi ıskaladığını çöz.
+    Bir sonraki analizlerinde aynı hatayı yapmamak için çıkardığın dersi 'ÖĞRENİLEN DERS: ...' şeklinde tek bir kural cümlesi olarak yaz.
+    """
+    
+    try:
+        ders = model.generate_content(prompt).text.strip()
+        HAFIZA["ogrenilen_dersler"].append({
+            "tarih": tr_saati.strftime('%Y-%m-%d %H:%M'),
+            "ders": ders
+        })
+        hafizayi_kaydet()
+        
+        telegram_mesaj_gonder(f"🧠 **AJAN GERİ BİLDİRİM VE ÖZ-EĞİTİM RAPORU** 🧠\n\nGeçmiş tahminlerimi denetledim ve şu stratejik kuralı hafızama kazıdım:\n\n`{ders}`\n\n🤖 *Sistem Durumu:* Ajan hatalarından ders çıkararak bir basamak daha akıllandı.")
+    except Exception as e:
+        print(f"Eğitim döngüsü hatası: {e}")
 
 # ==========================================
 # 🔄 ANA DÖNGÜ (7/24 DİNLEME VE RAPORLAMA)
@@ -403,13 +416,12 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
-    print(f"==> Render için kukla sunucu {port} portunda başlatıldı!")
+    print(f"==> Kukla sunucu aktif.")
     server.serve_forever()
 
 if __name__ == "__main__":
     threading.Thread(target=run_dummy_server, daemon=True).start()
-    
-    print("🚀 Borsa Ajanı başarıyla başlatıldı. Komutlar anlık dinleniyor...")
+    print("🚀 Akıllı Borsa Ajanı Başlatıldı.")
     
     while True:
         telegram_komutlari_dinle()
@@ -420,12 +432,19 @@ if __name__ == "__main__":
         saat_dakika = tr_saati.strftime("%H:%M")
         saniye = tr_saati.strftime("%S")
         
-        if saniye == "00":
+        # Saniye kaçırma riskini engellemek için aralık kontrolü
+        if saniye in ["00", "01", "02"]:
             if saat_dakika == "11:00":
                 ajani_calistir(rapor_tipi="SABAH AÇILIŞ VE PORTFÖY RİSK KONTROLÜ")
+                time.sleep(5)
             elif saat_dakika == "18:30":
                 ajani_calistir(rapor_tipi="AKŞAM KAPANIŞ VE MALİYET DEĞERLENDİRMESİ")
+                time.sleep(5)
             elif saat_dakika == "23:30":
+                # Hem resmi verileri güncelle hem de kendi kendini eğit
                 resmi_kaynaktan_temel_veri_guncelle()
-            
+                ajan_kendi_kendini_egit()
+                time.sleep(5)
+                
         time.sleep(2)
+                
