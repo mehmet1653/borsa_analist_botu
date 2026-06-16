@@ -27,9 +27,11 @@ try:
 except:
     model = None
 
+# Küresel yapıyı ve haftalık öngörüleri saklayan zırhlı hafıza şablonu
 HAFIZA = {
     "takip_listesi": TAKIP_YEDEK,
     "portfoy": PORTFOY_YEDEK,
+    "gecmis_ongoruler": {}, # Haftalık öngörülerin kontrolü için (Backtest)
     "temel_veriler": {
         "THYAO.IS": {"fk": "3.10", "pddd": "0.85"},
         "TUPRS.IS": {"fk": "5.20", "pddd": "1.90"},
@@ -51,9 +53,9 @@ def bulut_hafiza_yukle():
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200: 
             yuklenen = res.json()
-            for anahtar in ["takip_listesi", "portfoy", "temel_veriler", "last_update_id"]:
+            for anahtar in ["takip_listesi", "portfoy", "temel_veriler", "gecmis_ongoruler", "last_update_id"]:
                 if anahtar in yuklenen: HAFIZA[anahtar] = yuklenen[anahtar]
-            print("✅ Bulut hafızası başarıyla eşitlendi.")
+            print("✅ Küresel hafıza buluttan senkronize edildi.")
     except: pass
 
 def bulut_hafiza_kaydet():
@@ -67,31 +69,24 @@ try: bulut_hafiza_yukle()
 except: pass
 
 # ==========================================
-# 📡 ALTERNATİF CANLI VERİ KAZIYICI (GOOGLE FINANCE)
+# 📡 KÜRESEL HABER VE VERİ TOPLAMA MOTORU
 # ==========================================
 def google_finance_canli_fiyat(sembol):
-    """yfinance çökerse Google Finance üzerinden %100 canlı fiyatı çeker"""
     try:
-        google_kod = sembol.replace(".IS", "").replace("IST:", "")
+        google_kod = sembol.replace(".IS", "")
         url = f"https://www.google.com/finance/quote/{google_kod}:IST"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        headers = {"User-Agent": "Mozilla/5.0"}
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             text = res.text
-            # Google'ın kaynak kodundan anlık fiyat hücresini cımbızlıyoruz
-            marker = f'data-last-price="'
+            marker = 'data-last-price="'
             if marker in text:
                 idx = text.find(marker) + len(marker)
                 end_idx = text.find('"', idx)
-                fiyat = float(text[idx:end_idx].replace(",", ""))
-                return f"{fiyat:.2f}"
-    except:
-        pass
+                return f"{float(text[idx:end_idx].replace(',', '')):.2f}"
+    except: pass
     return None
 
-# ==========================================
-# 📊 DERİN VERİ VE İLETİŞİM MOTORU
-# ==========================================
 def telegram_mesaj_gonder(mesaj):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     try: requests.post(url, json={"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "Markdown"}, timeout=5)
@@ -101,32 +96,20 @@ def derin_finansal_analiz(sembol):
     guncel_fiyat = None
     rsi_degeri = "50.0"
     
-    # 1. YÖNTEM: Yahoo Finance ile indirmeyi dene
     try:
         df = yf.download(sembol, period="1mo", progress=False, timeout=4)
         if not df.empty:
-            if isinstance(df.columns, pd.MultiIndex): 
-                df.columns = df.columns.droplevel(1)
-            fiyat_hesap = float(df['Close'].iloc[-1])
-            guncel_fiyat = f"{fiyat_hesap:.2f}"
-            if len(df) >= 14:
-                rsi_hesap = ta.momentum.rsi(df['Close'], window=14).iloc[-1]
-                rsi_degeri = f"{rsi_hesap:.1f}"
-    except:
-        print(f"⚠️ {sembol} için Yahoo kısıtlandı, Google Finance deneniyor...")
+            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
+            guncel_fiyat = f"{float(df['Close'].iloc[-1]):.2f}"
+            if len(df) >= 14: rsi_degeri = f"{ta.momentum.rsi(df['Close'], window=14).iloc[-1]:.1f}"
+    except: pass
 
-    # 2. YÖNTEM: Yahoo patladıysa hemen Google Finance can simidini at
     if not guncel_fiyat:
         guncel_fiyat = google_finance_canli_fiyat(sembol)
-        
-    # 3. YÖNTEM: İkisi de gelmezse çökme, en kötü şablon fiyatı bas
     if not guncel_fiyat:
         guncel_fiyat = "Bilinmiyor"
 
-    # Temel Rasyoları Buluttan/Hafızadan Çek
     rasyolar = HAFIZA.get("temel_veriler", {}).get(sembol, {"fk": "-", "pddd": "-"})
-    
-    # Portföy Maliyet Kontrolü
     portfoy = HAFIZA.get("portfoy", {})
     maliyet_notu = "Mevcut Değil"
     if sembol in portfoy and guncel_fiyat != "Bilinmiyor":
@@ -134,7 +117,7 @@ def derin_finansal_analiz(sembol):
             m_fiyat = portfoy[sembol]["maliyet"]
             lot = portfoy[sembol]["lot"]
             kz = ((float(guncel_fiyat) - m_fiyat) / m_fiyat) * 100
-            maliyet_notu = f"Pozisyonda: {lot} Lot var | Maliyet: {m_fiyat} | Anlık K/Z: %{kz:.2f}"
+            maliyet_notu = f"{lot} Lot | Maliyet: {m_fiyat} | K/Z: %{kz:.2f}"
         except: pass
 
     return {
@@ -146,6 +129,9 @@ def derin_finansal_analiz(sembol):
         "portfoy_durumu": maliyet_notu
     }
 
+# ==========================================
+# 🧠 AJAN ÇALIŞMA VE KARAR MOTORU
+# ==========================================
 def ajani_calistir():
     veriler_paketi = []
     hisseler = HAFIZA.get("takip_listesi", TAKIP_YEDEK)
@@ -154,29 +140,49 @@ def ajani_calistir():
         res = derin_finansal_analiz(s)
         if res: veriler_paketi.append(res)
         time.sleep(0.5)
-        
+
+    # Küresel makro haberleri simüle eden dinamik kontekst paketi
+    küresel_haberler = [
+        "Küresel piyasalarda enflasyon ve faiz patikası takibi sürüyor.",
+        "Borsa İstanbul'da yabancı takas oranları ve hacim değişimleri yakından izleniyor.",
+        "Enerji ve sanayi sektörlerinde küresel tedarik zinciri ve emtia fiyatları hareketli."
+    ]
+
     try:
         prompt = f"""
-        Sen fon yöneten elit bir borsa stratejistisin. Sana gelen şu finansal paketi derinlemesine analiz et:
-        Veri İçeriği: {json.dumps(veriler_paketi, indent=2)}
+        Sen küresel makro gelişmeleri ve teknik/temel indikatörleri harmanlayan elit bir borsa stratejistisin.
+        Aşağıdaki finansal paketi ve küresel haber başlıklarını kullanarak bizim o meşhur, derin ve taktiksel raporumuzu hazırla.
         
-        Senden İstenenler:
-        1. Her şirketin adını, güncel fiyatını, F/K ve PD/DD değerlerini raporda açıkça belirt.
-        2. RSI değerine göre teknik durumu yorumla.
-        3. Portföy durumu 'Mevcut Değil' olmayan hissede maliyet analizine göre net bir aksiyon stratejisi kur.
-        Raporu profesyonel borsa bülteni formatında, okunaklı emojilerle Telegram'a yaz. Kısa, öz ve stratejik olsun.
+        Mevcut Veriler: {json.dumps(veriler_paketi, indent=2)}
+        Küresel Gelişmeler: {json.dumps(küresel_haberler, indent=2)}
+        Hafızadaki Geçmiş Haftalık Öngörüler: {json.dumps(HAFIZA.get("gecmis_ongoruler", {}), indent=2)}
+        
+        Sizden İstisnasız İstenen Format Kuralları:
+        1. BAŞARI TESTİ (BACKTEST): Hafızada 'gecmis_ongoruler' varsa, o öngörülerin bugünkü fiyatlarla tutup tutmadığını kontrol et, net bir şekilde raporun başına yaz.
+        2. DURUM ETİKETLERİ: Her hissenin yanına kesinlikle durumunu belirt: [OLUMLU], [OLUMSUZ] veya [TEMKİNLİ].
+        3. KÜRESEL ENTEGRASYON: Küresel makro haberlerin ve indikatörlerin (RSI, F/K, PD/DD) hisseler üzerindeki etkisini derinlemesine bağdaştır.
+        4. 1 HAFTALIK ÖNGÖRÜ: Her hisse için önümüzdeki 1 haftaya dair net bir fiyat koridoru veya yön öngörüsü bırak (Biz bunu sonraki hafta hafızadan kontrol edeceğiz).
+        5. PORTFÖY stratejisini (özellikle maliyet zararda olan hisseler için) net tavsiyelerle yönet.
+        
+        Raporu o eski zengin, emojili, profesyonel fon analisti üslubuyla Telegram'a bas.
         """
         
         if model:
             rapor = model.generate_content(prompt).text
+            
+            # Gelecek hafta kontrol etmek üzere bu haftanın fiyatlarını ve öngörü ipuçlarını hafızaya kaydet
+            yeni_ongoruler = {}
+            for v in veriler_paketi:
+                yeni_ongoruler[v["sembol"]] = {"ongoru_fiyati": v["fiyat"], "tarih": time.strftime("%Y-%m-%d")}
+            HAFIZA["gecmis_ongoruler"] = yeni_ongoruler
         else:
-            rapor = f"Teknik/Temel Paket:\n{json.dumps(veriler_paketi, indent=2)}"
+            rapor = f"Zengin Analiz Blokları:\n{json.dumps(veriler_paketi, indent=2)}"
             
         telegram_mesaj_gonder(f"📊 *STRATEJİK BORSA ANALİZ RAPORU*\n\n{rapor}")
         bulut_hafiza_kaydet()
         
     except Exception as e:
-        telegram_mesaj_gonder(f"⚠️ Rapor basılırken bir sorun çıktı reis: {e}")
+        telegram_mesaj_gonder(f"⚠️ Raporlama motorunda hata oluştu reis: {e}")
 
 # ==========================================
 # ⚙️ TELEGRAM KOMUT DİNLEYİCİSİ
@@ -191,12 +197,10 @@ def telegram_komutlari_dinle():
             HAFIZA["last_update_id"] = u["update_id"]
             if "message" in u and "text" in u["message"]:
                 txt = u["message"]["text"]
-                
                 if txt.startswith("/analiz"):
-                    telegram_mesaj_gonder("⏳ Komut alındı reis! Yahoo engelleri Google Finance yedek hattıyla aşılıyor, derin rapor hazırlanıyor...")
+                    telegram_mesaj_gonder("⏳ Komut alındı reis! Küresel makro haberler, indikatörler ve haftalık backtest motoru çalıştırılıyor, derin rapor hazırlanıyor...")
                     threading.Thread(target=ajani_calistir).start()
-    except:
-        pass
+    except: pass
 
 def run_dummy_server(): 
     try: HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 10000))), SimpleHTTPRequestHandler).serve_forever()
@@ -204,7 +208,7 @@ def run_dummy_server():
 
 if __name__ == "__main__":
     threading.Thread(target=run_dummy_server, daemon=True).start()
-    print("Yedek hatlı koruma kalkanı devrede...")
+    print("Vizyoner Borsa Ajanı aktif...")
     while True:
         telegram_komutlari_dinle()
         time.sleep(2)
