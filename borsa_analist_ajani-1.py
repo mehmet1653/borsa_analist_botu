@@ -8,6 +8,7 @@ import yfinance as yf
 import pandas as pd
 import ta
 import google.generativeai as genai
+from datetime import datetime
 
 # ==========================================
 # 🧠 KURUMSAL HAFIZA VE PORTFÖY ŞABLONU
@@ -27,11 +28,10 @@ try:
 except:
     model = None
 
-# Küresel yapıyı ve haftalık öngörüleri saklayan zırhlı hafıza şablonu
 HAFIZA = {
     "takip_listesi": TAKIP_YEDEK,
     "portfoy": PORTFOY_YEDEK,
-    "gecmis_ongoruler": {}, # Haftalık öngörülerin kontrolü için (Backtest)
+    "gecmis_ongoruler": {}, 
     "temel_veriler": {
         "THYAO.IS": {"fk": "3.10", "pddd": "0.85"},
         "TUPRS.IS": {"fk": "5.20", "pddd": "1.90"},
@@ -55,7 +55,7 @@ def bulut_hafiza_yukle():
             yuklenen = res.json()
             for anahtar in ["takip_listesi", "portfoy", "temel_veriler", "gecmis_ongoruler", "last_update_id"]:
                 if anahtar in yuklenen: HAFIZA[anahtar] = yuklenen[anahtar]
-            print("✅ Küresel hafıza buluttan senkronize edildi.")
+            print("✅ Küresel derin hafıza buluttan senkronize edildi, Mehmet.")
     except: pass
 
 def bulut_hafiza_kaydet():
@@ -65,11 +65,24 @@ def bulut_hafiza_kaydet():
     try: requests.post(url, headers=headers, data=json.dumps(HAFIZA, indent=4), timeout=5)
     except: pass
 
+def hafizayi_budat():
+    """Hafızayı sadece son 1 haftalık veriye indirger, şişmeyi engeller."""
+    global HAFIZA
+    if "gecmis_ongoruler" in HAFIZA:
+        tarih_siniri = time.time() - (7 * 86400)
+        yeni_gecmis = {}
+        for hisse, veri in HAFIZA["gecmis_ongoruler"].items():
+            try:
+                t = time.mktime(time.strptime(veri["analiz_tarihi"], "%Y-%m-%d"))
+                if t > tarih_siniri: yeni_gecmis[hisse] = veri
+            except: continue
+        HAFIZA["gecmis_ongoruler"] = yeni_gecmis
+
 try: bulut_hafiza_yukle()
 except: pass
 
 # ==========================================
-# 📡 KÜRESEL HABER VE VERİ TOPLAMA MOTORU
+# 📡 KÜRESEL VERİ VE FİYAT TOPLAMA MOTORU
 # ==========================================
 def google_finance_canli_fiyat(sembol):
     try:
@@ -104,10 +117,8 @@ def derin_finansal_analiz(sembol):
             if len(df) >= 14: rsi_degeri = f"{ta.momentum.rsi(df['Close'], window=14).iloc[-1]:.1f}"
     except: pass
 
-    if not guncel_fiyat:
-        guncel_fiyat = google_finance_canli_fiyat(sembol)
-    if not guncel_fiyat:
-        guncel_fiyat = "Bilinmiyor"
+    if not guncel_fiyat: guncel_fiyat = google_finance_canli_fiyat(sembol)
+    if not guncel_fiyat: guncel_fiyat = "Bilinmiyor"
 
     rasyolar = HAFIZA.get("temel_veriler", {}).get(sembol, {"fk": "-", "pddd": "-"})
     portfoy = HAFIZA.get("portfoy", {})
@@ -130,9 +141,10 @@ def derin_finansal_analiz(sembol):
     }
 
 # ==========================================
-# 🧠 AJAN ÇALIŞMA VE KARAR MOTORU
+# 🧠 KENDİ KENDİNİ KALİBRE EDEN ÇALIŞMA MOTORU
 # ==========================================
-def ajani_calistir():
+def ajani_calistir(is_otomatik_kapanis=False):
+    hafizayi_budat()
     veriler_paketi = []
     hisseler = HAFIZA.get("takip_listesi", TAKIP_YEDEK)
     
@@ -141,52 +153,55 @@ def ajani_calistir():
         if res: veriler_paketi.append(res)
         time.sleep(0.5)
 
-    # Küresel makro haberleri simüle eden dinamik kontekst paketi
     küresel_haberler = [
-        "Küresel piyasalarda enflasyon ve faiz patikası takibi sürüyor.",
-        "Borsa İstanbul'da yabancı takas oranları ve hacim değişimleri yakından izleniyor.",
-        "Enerji ve sanayi sektörlerinde küresel tedarik zinciri ve emtia fiyatları hareketli."
+        "Küresel merkez bankalarının faiz politikaları ve enflasyon baskıları emtia ve borsaları baskılıyor.",
+        "Borsa İstanbul genelinde yabancı giriş-çıkış hareketleri ve hacim daralması/genişlemesi takip ediliyor."
     ]
 
     try:
         prompt = f"""
-        Sen küresel makro gelişmeleri ve teknik/temel indikatörleri harmanlayan elit bir borsa stratejistisin.
-        Aşağıdaki finansal paketi ve küresel haber başlıklarını kullanarak bizim o meşhur, derin ve taktiksel raporumuzu hazırla.
+        Sen Mehmet'in özel fon yöneticisisin. {'Bu bir GÜN SONU KAPANIŞ analizidir.' if is_otomatik_kapanis else ''}
+        Sen HATALARINDAN DERS ÇIKARAN bir yapay zekasın. Mehmet'e hitap et, 'reis' deme.
         
-        Mevcut Veriler: {json.dumps(veriler_paketi, indent=2)}
-        Küresel Gelişmeler: {json.dumps(küresel_haberler, indent=2)}
-        Hafızadaki Geçmiş Haftalık Öngörüler: {json.dumps(HAFIZA.get("gecmis_ongoruler", {}), indent=2)}
+        Sana sunulan veriler:
+        1. Güncel Hisse Verileri: {json.dumps(veriler_paketi, indent=2)}
+        2. Küresel Haberler: {json.dumps(küresel_haberler, indent=2)}
+        3. Geçmiş Tahminler: {json.dumps(HAFIZA.get("gecmis_ongoruler", {}), indent=2)}
         
-        Sizden İstisnasız İstenen Format Kuralları:
-        1. BAŞARI TESTİ (BACKTEST): Hafızada 'gecmis_ongoruler' varsa, o öngörülerin bugünkü fiyatlarla tutup tutmadığını kontrol et, net bir şekilde raporun başına yaz.
-        2. DURUM ETİKETLERİ: Her hissenin yanına kesinlikle durumunu belirt: [OLUMLU], [OLUMSUZ] veya [TEMKİNLİ].
-        3. KÜRESEL ENTEGRASYON: Küresel makro haberlerin ve indikatörlerin (RSI, F/K, PD/DD) hisseler üzerindeki etkisini derinlemesine bağdaştır.
-        4. 1 HAFTALIK ÖNGÖRÜ: Her hisse için önümüzdeki 1 haftaya dair net bir fiyat koridoru veya yön öngörüsü bırak (Biz bunu sonraki hafta hafızadan kontrol edeceğiz).
-        5. PORTFÖY stratejisini (özellikle maliyet zararda olan hisseler için) net tavsiyelerle yönet.
-        
-        Raporu o eski zengin, emojili, profesyonel fon analisti üslubuyla Telegram'a bas.
+        [ADIM 1: BACKTEST] Geçmiş tahminlerini bugünle kıyasla. Yanıldıysan nedenini açıkla.
+        [ADIM 2: DURUM ETİKETLERİ] [OLUMLU], [OLUMSUZ] veya [TEMKİNLİ] etiketle ve nedenini yaz.
+        [ADIM 3: ÖNGÖRÜ] Önümüzdeki hafta için yön tahmini bırak.
         """
         
         if model:
             rapor = model.generate_content(prompt).text
             
-            # Gelecek hafta kontrol etmek üzere bu haftanın fiyatlarını ve öngörü ipuçlarını hafızaya kaydet
             yeni_ongoruler = {}
             for v in veriler_paketi:
-                yeni_ongoruler[v["sembol"]] = {"ongoru_fiyati": v["fiyat"], "tarih": time.strftime("%Y-%m-%d")}
+                yeni_ongoruler[v["sembol"]] = {
+                    "eski_fiyat": v["fiyat"],
+                    "analiz_tarihi": time.strftime("%Y-%m-%d")
+                }
             HAFIZA["gecmis_ongoruler"] = yeni_ongoruler
         else:
-            rapor = f"Zengin Analiz Blokları:\n{json.dumps(veriler_paketi, indent=2)}"
+            rapor = "Analiz motoru aktif."
             
         telegram_mesaj_gonder(f"📊 *STRATEJİK BORSA ANALİZ RAPORU*\n\n{rapor}")
         bulut_hafiza_kaydet()
-        
     except Exception as e:
-        telegram_mesaj_gonder(f"⚠️ Raporlama motorunda hata oluştu reis: {e}")
+        telegram_mesaj_gonder(f"⚠️ Hata: {e}")
 
 # ==========================================
-# ⚙️ TELEGRAM KOMUT DİNLEYİCİSİ
+# ⚙️ OTOMATİK ZAMANLAYICI VE DİNLEYİCİ
 # ==========================================
+def zamanlayici_motoru():
+    while True:
+        simdi = datetime.now()
+        if simdi.hour == 17 and 55 <= simdi.minute <= 59:
+            ajani_calistir(is_otomatik_kapanis=True)
+            time.sleep(600)
+        time.sleep(60)
+
 def telegram_komutlari_dinle():
     global HAFIZA
     offset = HAFIZA.get("last_update_id", 0) + 1
@@ -196,9 +211,7 @@ def telegram_komutlari_dinle():
         for u in res.get("result", []):
             HAFIZA["last_update_id"] = u["update_id"]
             if "message" in u and "text" in u["message"]:
-                txt = u["message"]["text"]
-                if txt.startswith("/analiz"):
-                    telegram_mesaj_gonder("⏳ Komut alındı reis! Küresel makro haberler, indikatörler ve haftalık backtest motoru çalıştırılıyor, derin rapor hazırlanıyor...")
+                if u["message"]["text"].startswith("/analiz"):
                     threading.Thread(target=ajani_calistir).start()
     except: pass
 
@@ -208,7 +221,7 @@ def run_dummy_server():
 
 if __name__ == "__main__":
     threading.Thread(target=run_dummy_server, daemon=True).start()
-    print("Vizyoner Borsa Ajanı aktif...")
+    threading.Thread(target=zamanlayici_motoru, daemon=True).start()
     while True:
         telegram_komutlari_dinle()
         time.sleep(2)
