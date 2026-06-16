@@ -27,7 +27,6 @@ try:
 except:
     model = None
 
-# Eğer bulut tamamen boşsa ilk kez oluşturulacak şablon veri yapısı
 HAFIZA = {
     "takip_listesi": TAKIP_YEDEK,
     "portfoy": PORTFOY_YEDEK,
@@ -61,58 +60,91 @@ def bulut_hafiza_kaydet():
     if not SUPABASE_URL or not SUPABASE_KEY: return
     url = f"{SUPABASE_URL}/storage/v1/object/ajan_hafizasi/hafiza.json"
     headers = {"Authorization": f"Bearer {SUPABASE_KEY}", "apikey": SUPABASE_KEY, "Content-Type": "application/json", "x-upsert": "true"}
-    try: 
-        requests.post(url, headers=headers, data=json.dumps(HAFIZA, indent=4), timeout=5)
-        print("💾 Hafıza Supabase kutusuna başarıyla kilitlendi!")
+    try: requests.post(url, headers=headers, data=json.dumps(HAFIZA, indent=4), timeout=5)
     except: pass
 
 try: bulut_hafiza_yukle()
 except: pass
 
 # ==========================================
-# 📡 DERİN VERİ VE İLETİŞİM MOTORU
+# 📡 ALTERNATİF CANLI VERİ KAZIYICI (GOOGLE FINANCE)
+# ==========================================
+def google_finance_canli_fiyat(sembol):
+    """yfinance çökerse Google Finance üzerinden %100 canlı fiyatı çeker"""
+    try:
+        google_kod = sembol.replace(".IS", "").replace("IST:", "")
+        url = f"https://www.google.com/finance/quote/{google_kod}:IST"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            text = res.text
+            # Google'ın kaynak kodundan anlık fiyat hücresini cımbızlıyoruz
+            marker = f'data-last-price="'
+            if marker in text:
+                idx = text.find(marker) + len(marker)
+                end_idx = text.find('"', idx)
+                fiyat = float(text[idx:end_idx].replace(",", ""))
+                return f"{fiyat:.2f}"
+    except:
+        pass
+    return None
+
+# ==========================================
+# 📊 DERİN VERİ VE İLETİŞİM MOTORU
 # ==========================================
 def telegram_mesaj_gonder(mesaj):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    try: 
-        requests.post(url, json={"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "Markdown"}, timeout=5)
-    except: 
-        pass
+    try: requests.post(url, json={"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "Markdown"}, timeout=5)
+    except: pass
 
 def derin_finansal_analiz(sembol):
+    guncel_fiyat = None
+    rsi_degeri = "50.0"
+    
+    # 1. YÖNTEM: Yahoo Finance ile indirmeyi dene
     try:
-        # Teknik Analiz Verisi (Son 1 Ay)
-        df = yf.download(sembol, period="1mo", progress=False, timeout=6)
-        if df.empty: return None
+        df = yf.download(sembol, period="1mo", progress=False, timeout=4)
+        if not df.empty:
+            if isinstance(df.columns, pd.MultiIndex): 
+                df.columns = df.columns.droplevel(1)
+            fiyat_hesap = float(df['Close'].iloc[-1])
+            guncel_fiyat = f"{fiyat_hesap:.2f}"
+            if len(df) >= 14:
+                rsi_hesap = ta.momentum.rsi(df['Close'], window=14).iloc[-1]
+                rsi_degeri = f"{rsi_hesap:.1f}"
+    except:
+        print(f"⚠️ {sembol} için Yahoo kısıtlandı, Google Finance deneniyor...")
+
+    # 2. YÖNTEM: Yahoo patladıysa hemen Google Finance can simidini at
+    if not guncel_fiyat:
+        guncel_fiyat = google_finance_canli_fiyat(sembol)
         
-        if isinstance(df.columns, pd.MultiIndex): 
-            df.columns = df.columns.droplevel(1)
-            
-        guncel_fiyat = float(df['Close'].iloc[-1])
-        rsi = ta.momentum.rsi(df['Close'], window=14).iloc[-1] if len(df) >= 14 else 50.0
-        
-        # Temel Rasyoları Buluttan veya Sistemden Çek (yfinance BIST için kararsız çünkü)
-        rasyolar = HAFIZA.get("temel_veriler", {}).get(sembol, {"fk": "Bilinmiyor", "pddd": "Bilinmiyor"})
-        
-        # Portföy Maliyet Kontrolü
-        portfoy = HAFIZA.get("portfoy", {})
-        maliyet_notu = "Mevcut Değil"
-        if sembol in portfoy:
+    # 3. YÖNTEM: İkisi de gelmezse çökme, en kötü şablon fiyatı bas
+    if not guncel_fiyat:
+        guncel_fiyat = "Bilinmiyor"
+
+    # Temel Rasyoları Buluttan/Hafızadan Çek
+    rasyolar = HAFIZA.get("temel_veriler", {}).get(sembol, {"fk": "-", "pddd": "-"})
+    
+    # Portföy Maliyet Kontrolü
+    portfoy = HAFIZA.get("portfoy", {})
+    maliyet_notu = "Mevcut Değil"
+    if sembol in portfoy and guncel_fiyat != "Bilinmiyor":
+        try:
             m_fiyat = portfoy[sembol]["maliyet"]
             lot = portfoy[sembol]["lot"]
-            kz = ((guncel_fiyat - m_fiyat) / m_fiyat) * 100
+            kz = ((float(guncel_fiyat) - m_fiyat) / m_fiyat) * 100
             maliyet_notu = f"Pozisyonda: {lot} Lot var | Maliyet: {m_fiyat} | Anlık K/Z: %{kz:.2f}"
+        except: pass
 
-        return {
-            "sembol": sembol,
-            "fiyat": f"{guncel_fiyat:.2f}",
-            "rsi": f"{rsi:.1f}",
-            "fk": rasyolar.get("fk", "-"),
-            "pddd": rasyolar.get("pddd", "-"),
-            "portfoy_durumu": maliyet_notu
-        }
-    except:
-        return None
+    return {
+        "sembol": sembol,
+        "fiyat": guncel_fiyat,
+        "rsi": rsi_degeri,
+        "fk": rasyolar.get("fk", "-"),
+        "pddd": rasyolar.get("pddd", "-"),
+        "portfoy_durumu": maliyet_notu
+    }
 
 def ajani_calistir():
     veriler_paketi = []
@@ -123,20 +155,16 @@ def ajani_calistir():
         if res: veriler_paketi.append(res)
         time.sleep(0.5)
         
-    if not veriler_paketi:
-        telegram_mesaj_gonder("❌ Hisse fiyatları çekilemedi reis, internet hattını kontrol et.")
-        return
-
     try:
         prompt = f"""
         Sen fon yöneten elit bir borsa stratejistisin. Sana gelen şu finansal paketi derinlemesine analiz et:
         Veri İçeriği: {json.dumps(veriler_paketi, indent=2)}
         
         Senden İstenenler:
-        1. Her şirketin adını, fiyatını, F/K ve PD/DD değerlerini raporda açıkça belirt (Sakın gizleme!).
-        2. RSI değerine göre aşırı alım mı satım mı yorumla.
-        3. Portföy durumu 'Mevcut Değil' olmayan hissede maliyet analizine göre net bir 'TUT/EKLE/AZALT' stratejisi kur.
-        Raporu profesyonel borsa bülteni formatında, okunaklı emojilerle Telegram'a yaz.
+        1. Her şirketin adını, güncel fiyatını, F/K ve PD/DD değerlerini raporda açıkça belirt.
+        2. RSI değerine göre teknik durumu yorumla.
+        3. Portföy durumu 'Mevcut Değil' olmayan hissede maliyet analizine göre net bir aksiyon stratejisi kur.
+        Raporu profesyonel borsa bülteni formatında, okunaklı emojilerle Telegram'a yaz. Kısa, öz ve stratejik olsun.
         """
         
         if model:
@@ -145,12 +173,10 @@ def ajani_calistir():
             rapor = f"Teknik/Temel Paket:\n{json.dumps(veriler_paketi, indent=2)}"
             
         telegram_mesaj_gonder(f"📊 *STRATEJİK BORSA ANALİZ RAPORU*\n\n{rapor}")
-        
-        # 🔥 Her şey başarıyla bittiği için artık o boş kutuyu dolduruyoruz!
         bulut_hafiza_kaydet()
         
     except Exception as e:
-        telegram_mesaj_gonder(f"⚠️ Rapor basılırken yapay zeka adımı çöktü: {e}")
+        telegram_mesaj_gonder(f"⚠️ Rapor basılırken bir sorun çıktı reis: {e}")
 
 # ==========================================
 # ⚙️ TELEGRAM KOMUT DİNLEYİCİSİ
@@ -167,7 +193,7 @@ def telegram_komutlari_dinle():
                 txt = u["message"]["text"]
                 
                 if txt.startswith("/analiz"):
-                    telegram_mesaj_gonder("⏳ Komut alındı reis! Derin çarpan analizi ve fiyat blokları hesaplanıyor, lütfen bekleyin...")
+                    telegram_mesaj_gonder("⏳ Komut alındı reis! Yahoo engelleri Google Finance yedek hattıyla aşılıyor, derin rapor hazırlanıyor...")
                     threading.Thread(target=ajani_calistir).start()
     except:
         pass
@@ -178,7 +204,7 @@ def run_dummy_server():
 
 if __name__ == "__main__":
     threading.Thread(target=run_dummy_server, daemon=True).start()
-    print("Bot sorunsuzca dinlemede reis...")
+    print("Yedek hatlı koruma kalkanı devrede...")
     while True:
         telegram_komutlari_dinle()
         time.sleep(2)
