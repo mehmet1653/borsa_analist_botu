@@ -22,26 +22,37 @@ def msg(text):
                       json={"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown"}, timeout=15)
     except: pass
 
-def analiz_hesapla(sembol):
+def analiz_hesapla():
     try:
-        df = yf.download(sembol, period="3mo", progress=False)
-        if df.empty: return {"fiyat": "-", "rsi": "-", "macd": "-", "ma50": "-"}
-        close = df['Close']
-        return {
-            "fiyat": f"{close.iloc[-1]:.2f}",
-            "rsi": f"{ta.momentum.rsi(close, window=14).iloc[-1]:.2f}",
-            "macd": "AL" if ta.trend.macd_diff(close).iloc[-1] > 0 else "SAT",
-            "ma50": f"{close.rolling(window=50).mean().iloc[-1]:.2f}"
-        }
+        # TEK SEFERDE TOPLU İNDİRME (Hata limitini çözer)
+        df_full = yf.download(TAKIP_LISTESI, period="3mo", group_by='ticker', progress=False)
+        rapor_verisi = []
+        
+        for s in TAKIP_LISTESI:
+            try:
+                # Veriyi alırken hissenin paket içindeki adını kontrol et
+                df = df_full[s] if len(TAKIP_LISTESI) > 1 else df_full
+                close = df['Close']
+                
+                rapor_verisi.append({
+                    "sembol": s,
+                    "fiyat": f"{close.iloc[-1]:.2f}",
+                    "rsi": f"{ta.momentum.rsi(close, window=14).iloc[-1]:.2f}",
+                    "macd": "AL" if ta.trend.macd_diff(close).iloc[-1] > 0 else "SAT",
+                    "ma50": f"{close.rolling(window=50).mean().iloc[-1]:.2f}"
+                })
+            except:
+                rapor_verisi.append({"sembol": s, "fiyat": "-", "rsi": "-", "macd": "-", "ma50": "-"})
+        return rapor_verisi
     except:
-        return {"fiyat": "-", "rsi": "-", "macd": "-", "ma50": "-"}
+        return [{"sembol": s, "fiyat": "-", "rsi": "-", "macd": "-", "ma50": "-"} for s in TAKIP_LISTESI]
 
 def ajani_calistir():
-    msg("🔄 Veriler analiz ediliyor...")
-    rapor_data = [{"sembol": s, **analiz_hesapla(s)} for s in TAKIP_LISTESI]
+    msg("🔄 Veriler tek paket halinde analiz ediliyor...")
+    data = analiz_hesapla()
     
     prompt = f"""
-    Sen bir borsa analiz uzmanısın. Şu verileri kullanarak rapor yaz: {json.dumps(rapor_data)}
+    Sen bir borsa analiz uzmanısın. Şu verileri kullanarak rapor yaz: {json.dumps(data)}
     
     FORMATI ASLA BOZMA, AYNEN ŞUNU KULLAN:
     ---
