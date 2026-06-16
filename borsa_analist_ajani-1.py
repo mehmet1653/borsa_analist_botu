@@ -60,24 +60,29 @@ def hafizayi_kaydet():
 # 📊 CANLI TEMEL RASYOLAR (BIST VE YABANCI)
 # ==========================================
 def tek_hisse_resmi_veri_cek(sembol):
+    # Küresel/Yabancı Varlıklar veya Pariteler İçin Veri Çekme
     if not sembol.endswith(".IS"):
+        if "=" in sembol or "-" in sembol or "GC=" in sembol:
+            HAFIZA["temel_veriler"][sembol] = {"fk": "N/A", "pddd": "N/A", "ihracat": "-", "ozsermaye_kar": "-"}
+            return True
         try:
             ticker = yf.Ticker(sembol)
             info = ticker.info
-            fk = info.get("trailingPE", "-")
+            fk = info.get("trailingPE", info.get("forwardPE", "-"))
             pddd = info.get("priceToBook", "-")
             fk_str = f"{float(fk):.2f}" if (fk and fk != "-") else "-"
             pddd_str = f"{float(pddd):.2f}" if (pddd and pddd != "-") else "-"
             HAFIZA["temel_veriler"][sembol] = {"fk": fk_str, "pddd": pddd_str, "ihracat": "-", "ozsermaye_kar": "-"}
             return True
         except:
-            if sembol in HAFIZA["temel_veriler"]: del HAFIZA["temel_veriler"][sembol]
+            HAFIZA["temel_veriler"][sembol] = {"fk": "-", "pddd": "-", "ihracat": "-", "ozsermaye_kar": "-"}
             return False
 
+    # BIST Hisseleri İçin Veri Çekme
     hisse_kodu = sembol.split(".")[0]
     try:
         api_url = f"https://api.frayzer.com/v1/financials/bist/{hisse_kodu}"
-        response = requests.get(api_url, timeout=5)
+        response = requests.get(api_url, timeout=4)
         if response.status_code == 200:
             data = response.json()
             fk = data.get("fk")
@@ -90,7 +95,7 @@ def tek_hisse_resmi_veri_cek(sembol):
                 return True
 
         url = f"https://www.isyatirim.com.tr/tr-tr/analiz/hisse/Sayfalar/Sirket-Karti.aspx?hisse={hisse_kodu}"
-        res = requests.get(url, timeout=6)
+        res = requests.get(url, timeout=5)
         soup = BeautifulSoup(res.text, "html.parser")
         fk_td = soup.find("td", text="F/K")
         pddd_td = soup.find("td", text="PD/DD")
@@ -102,18 +107,21 @@ def tek_hisse_resmi_veri_cek(sembol):
     except:
         pass
     
-    if sembol in HAFIZA["temel_veriler"]: del HAFIZA["temel_veriler"][sembol]
+    if sembol not in HAFIZA["temel_veriler"]:
+        HAFIZA["temel_veriler"][sembol] = {"fk": "-", "pddd": "-", "ihracat": "-", "ozsermaye_kar": "-"}
     return False
 
 # ==========================================
-# ⚙️ TELEGRAM İLETİŞİM VE DİNLLEME MOTORU
+# ⚙️ TELEGRAM İLETİŞİM MOTORU
 # ==========================================
 def telegram_mesaj_gonder(mesaj):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    MAX_LEN = 4000  
+    MAX_LEN = 3500  
     if len(mesaj) > MAX_LEN:
         parcalar = [mesaj[i:i+MAX_LEN] for i in range(0, len(mesaj), MAX_LEN)]
-        for parca in parcalar: telegram_mesaj_gonder(parca)
+        for parca in parcalar: 
+            telegram_mesaj_gonder(parca)
+            time.sleep(0.5)
         return
     payload = {"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "Markdown"}
     try: 
@@ -125,7 +133,7 @@ def telegram_komutlari_dinle():
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates"
     offset = HAFIZA.get("last_update_id", 0) + 1
     try:
-        response = requests.get(url, params={"offset": offset, "timeout": 10}, timeout=15).json()
+        response = requests.get(url, params={"offset": offset, "timeout": 5}, timeout=10).json()
         if not response.get("result"): return
         for update in response["result"]:
             HAFIZA["last_update_id"] = update["update_id"]
@@ -170,7 +178,6 @@ def telegram_komutlari_dinle():
                 hafizayi_kaydet()
                 telegram_mesaj_gonder(f"❌ `{hisse}` takip listesinden çıkarıldı.")
 
-            # 🔥 YENİ: PORTFÖYE LOT VE MALİYET EKLEME KOMUTU
             elif komut == "/portfoy_ekle" and len(parcalar) > 3:
                 hisse = parcalar[1].upper()
                 try:
@@ -184,26 +191,15 @@ def telegram_komutlari_dinle():
                 except:
                     telegram_mesaj_gonder("⚠️ Hatalı kullanım! Örnek: `/portfoy_ekle THYAO.IS 10 325.50`")
 
-            # 🔥 YENİ: PORTFÖYDEN HİSSE SİLME (SATILDI) KOMUTU
             elif komut == "/portfoy_cikar" and len(parcalar) > 1:
                 hisse = parcalar[1].upper()
                 if hisse in HAFIZA["portfoy"]:
                     del HAFIZA["portfoy"][hisse]
                     hafizayi_kaydet()
-                    telegram_mesaj_gonder(f"✅ `{hisse}` portföyünüzden tamamen silindi. Artık kâr/zarar hesabı yapılmayacak.")
+                    telegram_mesaj_gonder(f"✅ `{hisse}` portföyünüzden tamamen silindi.")
                 else:
                     telegram_mesaj_gonder(f"❓ `{hisse}` zaten portföyünüzde kayıtlı değil.")
     except: pass
-
-def dunya_gundemini_cek():
-    url = "https://news.google.com/rss/search?q=bist100+fed+inflation+economy&hl=en-US&gl=US&ceid=US:en"
-    haberler = []
-    try:
-        response = requests.get(url, timeout=5)
-        soup = BeautifulSoup(response.content, features="xml")
-        for item in soup.find_all('item')[:6]: haberler.append(f"- {item.title.text}")
-    except: return "Genel ekonomik akış dengeli."
-    return "\n".join(haberler)
 
 def finansal_veri_topla(sembol):
     try:
@@ -222,7 +218,7 @@ def finansal_veri_topla(sembol):
         df_daily['MACD_Signal'] = ta.trend.macd_signal(close_series)
         
         tek_hisse_resmi_veri_cek(sembol)
-        temel = HAFIZA.get("temel_veriler", {}).get(sembol, {"fk": "-", "pddd": "-", "ihracat": "-", "ozsermaye_kar": "-"})
+        temel = HAFIZA.get("temel_veriler", {}).get(sembol, {"fk": "-", "pddd": "-"})
         
         portfoy_notu = "YOK"
         if sembol in HAFIZA["portfoy"]:
@@ -234,13 +230,12 @@ def finansal_veri_topla(sembol):
             "fiyat": guncel_fiyat, "rsi": f"{df_daily['RSI'].iloc[-1]:.2f}", "sma_50": f"{df_daily['SMA_50'].iloc[-1]:.2f}",
             "macd": "AL SİNYALİ" if df_daily['MACD'].iloc[-1] > df_daily['MACD_Signal'].iloc[-1] else "SAT SİNYALİ",
             "fk": temel.get("fk", "-"), "pddd": temel.get("pddd", "-"), 
-            "ihracat": temel.get("ihracat", "-"), "ozsermaye_kar": temel.get("ozsermaye_kar", "-"),
             "portfoy_durumu": portfoy_notu
         }
     except: return None
 
 # ==========================================
-# 🧠 MATEMATİKSEL YAPAY ZEKA RAPORLAMA MOTORU
+# 🧠 YAPAY ZEKA RAPORLAMA MOTORU
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     tr_saati = dt.datetime.utcnow() + dt.timedelta(hours=3)
@@ -249,31 +244,31 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
         if veri:
-            piyasa_ozeti += f"\n📌 {sembol}\n  - Fiyat: {veri['fiyat']:.2f} | RSI: {veri['rsi']} | MACD: {veri['macd']}\n" \
-                            f"  - MA50: {veri['sma_50']}\n" \
-                            f"  - Temel Rasyolar -> F/K: {veri['fk']} | PD/DD: {veri['pddd']}\n" \
+            piyasa_ozeti += f"\n📌 {sembol}\n  - Fiyat: {veri['fiyat']:.2f} | RSI: {veri['rsi']} | MACD: {veri['macd']} | MA50: {veri['sma_50']}\n" \
+                            f"  - Temel Çarpanlar -> F/K: {veri['fk']} | PD/DD: {veri['pddd']}\n" \
                             f"  - [YATIRIM DURUMU]: {veri['portfoy_durumu']}\n"
-        time.sleep(0.5)
+        time.sleep(0.3)
 
-    tecrubeler_metni = "\n🧠 GEÇMİŞ TECRÜBELER:\n"
+    tecrubeler_metni = "\n🧠 GEÇMİŞ TECRÜBELER VE KURALLAR:\n"
     for d in HAFIZA["ogrenilen_dersler"]: tecrubeler_metni += f"- {d['ders']}\n"
 
     prompt = f"""
-    Sen rasyonel ve sadece MATEMATİKSEL VERİLERLE konuşan bir finans yapay zekasısın.
-    Asla kanıtlanmamış jeopolitik gerilim senaryoları, abartılı kriz iddiaları veya felaket tellallığı üretme. Amerika borsaları saat farkından dolayı açık olabilir, fiyata anlık bak.
+    Sen rasyonel ve sadece MATEMATİKSEL VERİLERLE konuşan kıdemli bir finans yapay zekasısın.
+    Asla kanıtlanmamış spekülasyonları, abartılı felaket senaryolarını rapora dahil etme. 
+    Açıklamalarını kısa, net, okunabilir tut. Destan yazma, Telegram karakter sınırını aşma.
     
     RAPOR TÜRÜ: {rapor_tipi}
     FİNANSAL VERİLER: {piyasa_ozeti}
     {tecrubeler_metni}
     
-    Aşağıdaki şablona harfiyen uyarak her enstrümanı analiz et:
+    Aşağıdaki şablona HARFİYEN uyarak ve her maddeyi kısa tutarak analiz et:
     ---
     ### [HİSSE ADI]
-    * Fiyat: [Fiyat] | RSI: [RSI] | MACD: [MACD]
+    * Fiyat: [Fiyat] | RSI: [RSI] | MACD: [MACD] | MA50: [MA50]
     * F/K: [F/K] | PD/DD: [PD/DD]
     * TREND: [OLUMLU / OLUMSUZ / TEMKİNLİ]
-    * Yorum: Teknik göstergeleri ve eğer varsa gerçek rasyoları yorumla. Fiyat MA50 üzerindeyse pozitif, RSI şişmişse düzeltme uyarısı yap.
-    * 📌 1 HAFTALIK ÖNGÖRÜ: "Mevcut momentum, financial rasyolar ve haber akışı korunduğu sürece önwearki 1 hafta boyunca [olumlu seyrin/düzeltmenin/yatay seyrin] sürmesi beklenmektedir" kalıbına sadık kal.
+    * Yorum: [Teknik ve temel durumu en fazla 2 kısa cümlede özetle.]
+    * 📌 1 HAFTALIK ÖNGÖRÜ: "Mevcut momentum, financial rasyolar ve haber akışı korunduğu sürece önümüzdeki 1 hafta boyunca [olumlu seyrin/düzeltmenin/yatay seyrin] sürmesi beklenmektedir" kalıbına sadık kal.
     """
     try: 
         ai_raporu = model.generate_content(prompt).text
@@ -282,7 +277,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     except Exception as e: print(f"Hata: {e}")
 
 # ==========================================
-# 🔄 ANA DÖNGÜ (7/24 SAAT KAÇIRMAYAN DÖNGÜ)
+# 🔄 ANA DÖNGÜ (7/24 DÖNGÜ)
 # ==========================================
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))
@@ -318,3 +313,4 @@ if __name__ == "__main__":
             print("💾 Gece tüm küresel ve yerel hafıza senkronizasyonu tamamlandı.")
             
         time.sleep(2)
+        
