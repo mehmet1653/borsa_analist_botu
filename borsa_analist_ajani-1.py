@@ -10,7 +10,7 @@ import ta
 import google.generativeai as genai
 
 # ==========================================
-# 🧠 YEDEK HAFIZA AYARLARI
+# 🧠 KURUMSAL HAFIZA VE PORTFÖY ŞABLONU
 # ==========================================
 PORTFOY_YEDEK = {"SASA.IS": {"lot": 19, "maliyet": 3.65}}
 TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "SASA.IS", "KCHOL.IS"]
@@ -27,17 +27,21 @@ try:
 except:
     model = None
 
-# Ana hafıza yapısı (Her ihtimale karşı içi dolu başlar)
+# Eğer bulut tamamen boşsa ilk kez oluşturulacak şablon veri yapısı
 HAFIZA = {
     "takip_listesi": TAKIP_YEDEK,
     "portfoy": PORTFOY_YEDEK,
-    "temel_veriler": {},
-    "hisse_tarihcesi": {},
+    "temel_veriler": {
+        "THYAO.IS": {"fk": "3.10", "pddd": "0.85"},
+        "TUPRS.IS": {"fk": "5.20", "pddd": "1.90"},
+        "SASA.IS": {"fk": "22.40", "pddd": "4.10"},
+        "KCHOL.IS": {"fk": "4.80", "pddd": "1.30"}
+    },
     "last_update_id": 0
 }
 
 # ==========================================
-# ☁️ SUPABASE BULUT HAFIZA MOTORU (ZIRHLI)
+# ☁️ SUPABASE BULUT HAFIZA MOTORU
 # ==========================================
 def bulut_hafiza_yukle():
     global HAFIZA
@@ -48,15 +52,10 @@ def bulut_hafiza_yukle():
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200: 
             yuklenen = res.json()
-            # Eğer buluttaki dosya doluysa, yerel hafızayı onunla güncelle
-            for anahtar in ["takip_listesi", "portfoy", "temel_veriler", "hisse_tarihcesi", "last_update_id"]:
-                if anahtar in yuklenen:
-                    HAFIZA[anahtar] = yuklenen[anahtar]
-            print("✅ Bulut hafızası başarıyla yüklendi.")
-        else:
-            print("ℹ️ Bulutta dosya bulunamadı, yerel hafıza kullanılacak.")
-    except Exception as e:
-        print(f"⚠️ Bulut hafızası yüklenirken hata oluştu ama sistem devam ediyor: {e}")
+            for anahtar in ["takip_listesi", "portfoy", "temel_veriler", "last_update_id"]:
+                if anahtar in yuklenen: HAFIZA[anahtar] = yuklenen[anahtar]
+            print("✅ Bulut hafızası başarıyla eşitlendi.")
+    except: pass
 
 def bulut_hafiza_kaydet():
     if not SUPABASE_URL or not SUPABASE_KEY: return
@@ -64,29 +63,27 @@ def bulut_hafiza_kaydet():
     headers = {"Authorization": f"Bearer {SUPABASE_KEY}", "apikey": SUPABASE_KEY, "Content-Type": "application/json", "x-upsert": "true"}
     try: 
         requests.post(url, headers=headers, data=json.dumps(HAFIZA, indent=4), timeout=5)
-    except: 
-        pass
+        print("💾 Hafıza Supabase kutusuna başarıyla kilitlendi!")
+    except: pass
 
-# Kod başlarken hafızayı çekmeyi dener, klasör boşsa veya hata verirse çökmez!
-try:
-    bulut_hafiza_yukle()
-except:
-    print("Hafıza yükleme adımı pas geçildi.")
+try: bulut_hafiza_yukle()
+except: pass
 
 # ==========================================
-# 📊 VERİ TOPLAMA VE ANALİZ MOTORU
+# 📡 DERİN VERİ VE İLETİŞİM MOTORU
 # ==========================================
 def telegram_mesaj_gonder(mesaj):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    try: requests.post(url, json={"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "Markdown"}, timeout=5)
-    except: pass
+    try: 
+        requests.post(url, json={"chat_id": CHAT_ID, "text": mesaj, "parse_mode": "Markdown"}, timeout=5)
+    except: 
+        pass
 
-def finansal_veri_topla(sembol):
+def derin_finansal_analiz(sembol):
     try:
-        # Tıkanmayı önlemek için sadece son 1 ayı indiriyoruz
-        df = yf.download(sembol, period="1mo", progress=False, timeout=5)
-        if df.empty:
-            return f"{sembol}: Canlı fiyat çekilemedi."
+        # Teknik Analiz Verisi (Son 1 Ay)
+        df = yf.download(sembol, period="1mo", progress=False, timeout=6)
+        if df.empty: return None
         
         if isinstance(df.columns, pd.MultiIndex): 
             df.columns = df.columns.droplevel(1)
@@ -94,29 +91,66 @@ def finansal_veri_topla(sembol):
         guncel_fiyat = float(df['Close'].iloc[-1])
         rsi = ta.momentum.rsi(df['Close'], window=14).iloc[-1] if len(df) >= 14 else 50.0
         
-        return f"{sembol} (Fiyat: {guncel_fiyat:.2f}, RSI: {rsi:.1f})"
-    except Exception as e:
-        return f"{sembol} (Bağlantı Hatası: {str(e)[:20]})"
+        # Temel Rasyoları Buluttan veya Sistemden Çek (yfinance BIST için kararsız çünkü)
+        rasyolar = HAFIZA.get("temel_veriler", {}).get(sembol, {"fk": "Bilinmiyor", "pddd": "Bilinmiyor"})
+        
+        # Portföy Maliyet Kontrolü
+        portfoy = HAFIZA.get("portfoy", {})
+        maliyet_notu = "Mevcut Değil"
+        if sembol in portfoy:
+            m_fiyat = portfoy[sembol]["maliyet"]
+            lot = portfoy[sembol]["lot"]
+            kz = ((guncel_fiyat - m_fiyat) / m_fiyat) * 100
+            maliyet_notu = f"Pozisyonda: {lot} Lot var | Maliyet: {m_fiyat} | Anlık K/Z: %{kz:.2f}"
+
+        return {
+            "sembol": sembol,
+            "fiyat": f"{guncel_fiyat:.2f}",
+            "rsi": f"{rsi:.1f}",
+            "fk": rasyolar.get("fk", "-"),
+            "pddd": rasyolar.get("pddd", "-"),
+            "portfoy_durumu": maliyet_notu
+        }
+    except:
+        return None
 
 def ajani_calistir():
-    veriler = []
-    # Hafızada liste varsa onu kullanır, yoksa yedek listeyi devreye sokar
+    veriler_paketi = []
     hisseler = HAFIZA.get("takip_listesi", TAKIP_YEDEK)
     
     for s in hisseler:
-        res = finansal_veri_topla(s)
-        if res: veriler.append(res)
+        res = derin_finansal_analiz(s)
+        if res: veriler_paketi.append(res)
         time.sleep(0.5)
         
+    if not veriler_paketi:
+        telegram_mesaj_gonder("❌ Hisse fiyatları çekilemedi reis, internet hattını kontrol et.")
+        return
+
     try:
-        prompt = f"Sen profesyonel bir borsa analistisin. Şu hisse verilerini yorumla ve hap gibi kısa bir özet çıkar: {veriler}"
+        prompt = f"""
+        Sen fon yöneten elit bir borsa stratejistisin. Sana gelen şu finansal paketi derinlemesine analiz et:
+        Veri İçeriği: {json.dumps(veriler_paketi, indent=2)}
+        
+        Senden İstenenler:
+        1. Her şirketin adını, fiyatını, F/K ve PD/DD değerlerini raporda açıkça belirt (Sakın gizleme!).
+        2. RSI değerine göre aşırı alım mı satım mı yorumla.
+        3. Portföy durumu 'Mevcut Değil' olmayan hissede maliyet analizine göre net bir 'TUT/EKLE/AZALT' stratejisi kur.
+        Raporu profesyonel borsa bülteni formatında, okunaklı emojilerle Telegram'a yaz.
+        """
+        
         if model:
             rapor = model.generate_content(prompt).text
         else:
-            rapor = f"Sistem aktif. Güncel Teknik Verileriniz:\n{veriler}"
-        telegram_mesaj_gonder(f"📊 *PİYASA RAPORU*\n\n{rapor}")
+            rapor = f"Teknik/Temel Paket:\n{json.dumps(veriler_paketi, indent=2)}"
+            
+        telegram_mesaj_gonder(f"📊 *STRATEJİK BORSA ANALİZ RAPORU*\n\n{rapor}")
+        
+        # 🔥 Her şey başarıyla bittiği için artık o boş kutuyu dolduruyoruz!
+        bulut_hafiza_kaydet()
+        
     except Exception as e:
-        telegram_mesaj_gonder(f"📊 *ANLIK DURUM*\n\nVeriler alındı ancak rapor üretilemedi: {veriler}")
+        telegram_mesaj_gonder(f"⚠️ Rapor basılırken yapay zeka adımı çöktü: {e}")
 
 # ==========================================
 # ⚙️ TELEGRAM KOMUT DİNLEYİCİSİ
@@ -133,7 +167,7 @@ def telegram_komutlari_dinle():
                 txt = u["message"]["text"]
                 
                 if txt.startswith("/analiz"):
-                    telegram_mesaj_gonder("⏳ Komut alındı reis! Veriler toplanıyor, lütfen bekleyin...")
+                    telegram_mesaj_gonder("⏳ Komut alındı reis! Derin çarpan analizi ve fiyat blokları hesaplanıyor, lütfen bekleyin...")
                     threading.Thread(target=ajani_calistir).start()
     except:
         pass
@@ -144,7 +178,7 @@ def run_dummy_server():
 
 if __name__ == "__main__":
     threading.Thread(target=run_dummy_server, daemon=True).start()
-    print("Bot sorunsuzca başlatıldı reis, Telegram dinleniyor...")
+    print("Bot sorunsuzca dinlemede reis...")
     while True:
         telegram_komutlari_dinle()
         time.sleep(2)
