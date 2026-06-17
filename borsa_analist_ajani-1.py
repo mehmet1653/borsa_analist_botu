@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 import datetime as dt
 from supabase import create_client, Client
 
-=======================================
 # 🛑 MANUEL GÜNCEL VERİ İSTASYONU
 # ==========================================
 VERI_KUTUSU = {
