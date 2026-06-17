@@ -445,8 +445,8 @@ def run_dummy_server():
     server.serve_forever()
 
     if __name__ == "__main__":
-    threading.Thread(target=run_dummy_server, daemon=True).start()
-    print("🚀 Akıllı Borsa Ajanı Başlatıldı.")
+        threading.Thread(target=run_dummy_server, daemon=True).start()
+        print("🚀 Akıllı Borsa Ajanı Başlatıldı.")
     
     while True:
         telegram_komutlari_dinle()
