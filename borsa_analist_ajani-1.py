@@ -298,23 +298,18 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
+    anlik_tahmin_verisi = {} 
     piyasa_ozeti = ""
     
     for sembol in HAFIZA["takip_listesi"]:
-        # Veriyi çek (Fonksiyonun içine senin az önce eklediğimiz 'akıllı tamamlama' mantığını koyduk)
         veri = finansal_veri_topla(sembol)
-        
         if veri:
-            # Burası raporun içine F/K, PD/DD, RSI'yı basan yer!
-            piyasa_ozeti += f"""
-### {sembol}
-* GÜNCEL FİYAT: {veri.get('fiyat', '-')}
-* TEMEL RASYOLAR: F/K: {veri.get('fk', '-')}, PD/DD: {veri.get('pddd', '-')}
-* TEKNİK GÖSTERGELER: RSI: {veri.get('rsi', '-')}, MACD: {veri.get('macd', '-')}
-* PORTFÖY DURUMU: {veri.get('portfoy_durumu', 'YOK')}
-* ANALİZ: {hisse_haber_analizi_yap(sembol)}
-"""
-        time.sleep(0.5)
+            # Buraya 'anlik_tahmin_verisi'ni dolduracak kodları ekliyoruz
+            anlik_tahmin_verisi[sembol] = veri 
+            
+            # Raporu oluştururken artık bu sözlüğü kullanabilirsin
+            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | RSI: {veri.get('rsi')}"
+        time.sleep(1)
 
     tecrubeler_metni = "\n🧠 ÖĞRENİLEN DERSLER (SENSEİ KURALLARI):\n"
     if HAFIZA.get("ogrenilen_dersler"):
