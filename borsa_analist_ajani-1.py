@@ -323,11 +323,11 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
         if veri:
-            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri['fiyat']} | RSI: {veri['rsi']} | MACD: {veri['macd']}\n"
+            # Buraya temel verileri de ekliyoruz ki yapay zeka görsün
+            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri['fiyat']} | RSI: {veri['rsi']} | MACD: {veri['macd']} | FK: {veri['fk']} | PD/DD: {veri['pddd']}"
             anlik_tahmin_verisi[sembol] = {"fiyat": veri['fiyat'], "rsi": veri['rsi'], "macd": veri['macd']}
         time.sleep(0.5)
 
-    # 1. ÖĞRENEN DERSLERİ ÇEK
     tecrubeler_metni = "\n🧠 ÖĞRENİLEN DERSLER (SENSEİ KURALLARI):\n"
     if HAFIZA.get("ogrenilen_dersler"):
         for d in HAFIZA["ogrenilen_dersler"][-5:]: 
@@ -335,49 +335,40 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     else:
         tecrubeler_metni += "- Henüz ders çıkarılmadı, ilk analizler yapılıyor.\n"
 
-    # 2. GEÇMİŞ KIYASLAMA (Hata analizi için)
-    gecmis_tahmin_notu = "Henüz kıyaslanacak geçmiş tahmin bulunamadı."
-    if HAFIZA.get("tahmin_gunlugu"):
-        son_tarih = list(HAFIZA["tahmin_gunlugu"].keys())[-1]
-        gecmis_tahmin_notu = f"En son {son_tarih} tarihinde analiz yaptın. Şu anki fiyatları o günkü tahminlerinle kıyasla ve eğer yanıldıysan nedenini (indikatör yanılgısı, piyasa haberi vs.) raporda açıkça belirt."
-
-        prompt = f"""
+    # Prompt'u IF bloğunun dışına çıkardım ve daha net hale getirdim
+    prompt = f"""
     Sen rasyonel, geçmiş hatalarından ders çıkaran profesyonel bir finans yapay zekasısın.
     
     RAPOR TÜRÜ: {rapor_tipi}
-    HAM VERİLER: {piyasa_ozeti}
+    GÜNCEL PİYASA VERİLERİ: {piyasa_ozeti}
     {tecrubeler_metni}
     
     GÖREVİN:
     Teknik verileri (Fiyat, RSI, MACD) ve temel verileri (F/K, PD/DD) birleştirerek yorumla.
-    
     Her hisse için tam olarak şu formatı kullan:
-    ---
+    
     ### [HİSSE ADI]
-    * GÜNCEL FİYAT: [Fiyatı buraya yaz]
-    * TEMEL RASYOLAR: F/K: [F/K], PD/DD: [PD/DD]
-    * GEÇMİŞ ANALİZİM: [Tuttu/Tutmadı - Hatanın Nedeni]
+    * GÜNCEL FİYAT: [Fiyat]
+    * TEMEL RASYOLAR: F/K: [FK], PD/DD: [PD/DD]
+    * GEÇMİŞ ANALİZİM: [Önceki günlerden gelen analiz]
     * YENİ ÖNGÖRÜ: [OLUMLU/OLUMSUZ/TEMKİNLİ]
     * Yorum: [Teknik ve temel verileri harmanlayan keskin analiz]
-    ---
     """
-        
     
     try: 
         ai_raporu = model.generate_content(prompt).text
         
-        # Hafızaya kaydet
         HAFIZA["tahmin_gunlugu"][bugun_str] = {
             "piyasa_durumu": anlik_tahmin_verisi, 
-            "ai_raporu": ai_raporu, # Tamamını kaydet
-            "ai_raporu_kesiti": ai_raporu[:500] # Kesiti buraya ekle (eğitim için lazım)
+            "ai_raporu": ai_raporu, 
+            "ai_raporu_kesiti": ai_raporu[:500] 
         }
 
         hafizayi_kaydet()
-        
         telegram_mesaj_gonder(f"📊 **AKILLI ANALİZ RAPORU**\n\n{ai_raporu}")
     except Exception as e: 
         telegram_mesaj_gonder(f"🤖 Yapay zeka sentez hatası: {e}")
+        
 
 # ... (Kodun geri kalanını [ajan_kendi_kendini_egit ve sonrası] aynen bırak)
 
