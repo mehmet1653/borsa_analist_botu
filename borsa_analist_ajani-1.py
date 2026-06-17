@@ -13,18 +13,19 @@ from datetime import datetime, timedelta
 import datetime as dt
 from supabase import create_client, Client
 
+=======================================
+# 🛑 MANUEL GÜNCEL VERİ İSTASYONU
 # ==========================================
-# 🛠️ MEHMET REİS BULUT VE GENİŞLETİLMİŞ HAFIZA SİSTEMİ
-# ==========================================
-TEMEL_VERILER_YEDEK = {
-    "ASTOR.IS": {"fk": "36.39", "pddd": "8.59", "ihracat": "%44.35", "ozsermaye_kar": "%26.32"},
-    "SASA.IS": {"fk": "22.40", "pddd": "4.10", "ihracat": "%31.20", "ozsermaye_kar": "%12.50"},
-    "KRDMB.IS": {"fk": "14.20", "pddd": "2.15", "ihracat": "%15.40", "ozsermaye_kar": "%18.60"},
-    "THYAO.IS": {"fk": "4.80", "pddd": "0.95", "ihracat": "%85.00", "ozsermaye_kar": "%33.10"},
-    "TUPRS.IS": {"fk": "6.20", "pddd": "3.40", "ihracat": "%22.10", "ozsermaye_kar": "%41.20"},
-    "KCHOL.IS": {"fk": "5.50", "pddd": "1.80", "ihracat": "%55.00", "ozsermaye_kar": "%38.40"},
-    "MRGYO.IS": {"fk": "11.10", "pddd": "0.85", "ihracat": "%0.00", "ozsermaye_kar": "%9.10"}
+VERI_KUTUSU = {
+    "THYAO.IS": {"fk": "3.47", "pddd": "0.47"},
+    "TUPRS.IS": {"fk": "6.20", "pddd": "3.40"},
+    "SASA.IS":  {"fk": "22.40", "pddd": "4.10"},
+    "ASTOR.IS": {"fk": "36.39", "pddd": "8.59"},
+    "KCHOL.IS": {"fk": "5.50", "pddd": "1.80"},
+    "MRGYO.IS": {"fk": "11.10", "pddd": "0.85"},
+    "KRDMB.IS": {"fk": "14.20", "pddd": "2.15"}
 }
+
 
 PORTFOY_YEDEK = {
     "SASA.IS": {"lot": 19, "maliyet": 3.65},   
@@ -84,39 +85,33 @@ hafizayi_yukle()
 # ==========================================
 
 def tek_hisse_resmi_veri_cek(sembol):
-    hisse_kodu = sembol.split(".")[0]
-    # Gerçek bir tarayıcı gibi davranıyoruz ki engel yemeyelim
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    url = f"https://www.isyatirim.com.tr/tr-tr/analiz/hisse/Sayfalar/Sirket-Karti.aspx?hisse={hisse_kodu}"
+    # 1. Öncelik: Manuel Veri İstasyonu
+    if sembol in VERI_KUTUSU:
+        data = VERI_KUTUSU[sembol]
+        HAFIZA["temel_veriler"][sembol] = {
+            "fk": data["fk"], "pddd": data["pddd"],
+            "ihracat": "-", "ozsermaye_kar": "-"
+        }
+        return True
     
+    # 2. Öncelik: İnternetten çek ve hafızaya kaydet
+    ticker = yf.Ticker(sembol)
     try:
-        res = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(res.text, "html.parser")
+        info = ticker.info
+        fk = info.get("trailingPE")
+        pddd = info.get("priceToBook")
         
-        # İş Yatırım'daki tabloyu tarıyoruz
-        # F/K ve PD/DD verilerini içeren özel tabloları bul
-        tablo = soup.find("div", {"class": "card-summary"}) # Veya uygun tablo sınıfı
-        
-        # Eğer tabloyu bulamazsan, metin arayalım:
-        fk_metin = soup.find(text="F/K")
-        pddd_metin = soup.find(text="PD/DD")
-        
-        if fk_metin and pddd_metin:
-            fk_val = fk_metin.find_next("span").text.strip().replace(",", ".")
-            pddd_val = pddd_metin.find_next("span").text.strip().replace(",", ".")
-            
+        if fk and pddd:
             HAFIZA["temel_veriler"][sembol] = {
-                "fk": fk_val,
-                "pddd": pddd_val,
-                "ihracat": "-",
-                "ozsermaye_kar": "-"
+                "fk": f"{float(fk):.2f}", 
+                "pddd": f"{float(pddd):.2f}",
+                "ihracat": "-", "ozsermaye_kar": "-"
             }
+            hafizayi_kaydet() # Artık hafızaya kalıcı yazıyor!
             return True
-    except Exception as e:
-        print(f"⚠️ Otomatik çekim başarısız: {e}")
-    return False
+    except:
+        return False
+
     
 def resmi_kaynaktan_temel_veri_guncelle():
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
