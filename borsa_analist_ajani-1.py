@@ -445,31 +445,30 @@ def run_dummy_server():
     server.serve_forever()
 
     if __name__ == "__main__":
-        threading.Thread(target=run_dummy_server, daemon=True).start()
-        print("🚀 Akıllı Borsa Ajanı Başlatıldı.")
+    print("🚀 Akıllı Borsa Ajanı başlatılıyor...")
     
+    # 1. Kukla sunucuyu başlat
+    try:
+        threading.Thread(target=run_dummy_server, daemon=True).start()
+        print("✅ Kukla sunucu (web server) thread olarak başlatıldı.")
+    except Exception as e:
+        print(f"❌ Sunucu başlatılamadı: {e}")
+
+    # 2. Ana döngü
+    print("✅ Ana döngüye giriliyor...")
     while True:
-        telegram_komutlari_dinle()
-        
-        su_an_utc = dt.datetime.utcnow()
-        tr_saati = su_an_utc + dt.timedelta(hours=3)
-        
-        saat_dakika = tr_saati.strftime("%H:%M")
-        saniye = tr_saati.strftime("%S")
-        
-        # Saniye kaçırma riskini engellemek için aralık kontrolü
-        if saniye in ["00", "01", "02"]:
-            if saat_dakika == "11:00":
-                ajani_calistir(rapor_tipi="SABAH AÇILIŞ VE PORTFÖY RİSK KONTROLÜ")
-                time.sleep(5)
-            elif saat_dakika == "18:30":
-                ajani_calistir(rapor_tipi="AKŞAM KAPANIŞ VE MALİYET DEĞERLENDİRMESİ")
-                time.sleep(5)
-            elif saat_dakika == "23:30":
-                # Hem resmi verileri güncelle hem de kendi kendini eğit
-                resmi_kaynaktan_temel_veri_guncelle()
-                ajan_kendi_kendini_egit()
-                time.sleep(5)
-                
+        try:
+            telegram_komutlari_dinle()
+            
+            # Zaman kontrolleri
+            su_an_utc = dt.datetime.utcnow()
+            tr_saati = su_an_utc + dt.timedelta(hours=3)
+            # ... (Zaman kontrol kodların aynı kalsın) ...
+            
+        except Exception as e:
+            print(f"❌ Ana döngü hatası: {e}")
+            time.sleep(10) # Hata olursa biraz bekle ki sunucu patlamasın
+            
         time.sleep(1)
+        
             
