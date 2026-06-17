@@ -83,48 +83,34 @@ hafizayi_yukle()
 # 📊 TEK BİR HİSSE İÇİN ANLIK RESMİ VERİ ÇEKİCİ
 # ==========================================
 def tek_hisse_resmi_veri_cek(sembol):
-    if not sembol.endswith(".IS"):
-        return False
-        
-    hisse_kodu = sembol.split(".")[0]
+    # .IS eklemesi yapma, yfinance kendi halleder
+    ticker = yf.Ticker(sembol)
     try:
-        api_url = f"https://api.frayzer.com/v1/financials/bist/{hisse_kodu}"
-        response = requests.get(api_url, timeout=8)
+        # Veriyi tazelemek için info'yu çağırıyoruz
+        info = ticker.info
         
-        if response.status_code == 200:
-            data = response.json()
-            fk = str(data.get("fk", "-"))
-            pddd = str(data.get("pddd", "-"))
-            if fk != "-" and pddd != "-":
-                HAFIZA["temel_veriler"][sembol] = {
-                    "fk": f"{float(fk):.2f}",
-                    "pddd": f"{float(pddd):.2f}",
-                    "ihracat": "-",
-                    "ozsermaye_kar": "-"
-                }
-                return True
-
-        url = f"https://www.isyatirim.com.tr/tr-tr/analiz/hisse/Sayfalar/Sirket-Karti.aspx?hisse={hisse_kodu}"
-        res = requests.get(url, timeout=8)
-        soup = BeautifulSoup(res.text, "html.parser")
+        # trailingPE: F/K oranı, priceToBook: PD/DD oranı
+        fk = info.get("trailingPE")
+        pddd = info.get("priceToBook")
         
-        fk_td = soup.find("td", text="F/K")
-        pddd_td = soup.find("td", text="PD/DD")
-        
-        if fk_td and pddd_td:
-            fk_val = fk_td.find_next_sibling("td").text.strip().replace(",", ".")
-            pddd_val = pddd_td.find_next_sibling("td").text.strip().replace(",", ".")
-            
+        # Eğer veri gelirse hafızayı güncelle
+        if fk is not None and pddd is not None:
             HAFIZA["temel_veriler"][sembol] = {
-                "fk": fk_val,
-                "pddd": pddd_val,
+                "fk": f"{float(fk):.2f}",
+                "pddd": f"{float(pddd):.2f}",
                 "ihracat": "-",
                 "ozsermaye_kar": "-"
             }
+            print(f"✅ {sembol} verisi güncellendi: FK={fk}, PD/DD={pddd}")
             return True
+        else:
+            print(f"⚠️ {sembol} için güncel temel veri bulunamadı.")
+            return False
+            
     except Exception as e:
-        print(f"⚠️ {sembol} anlık rasyo çekimi başarısız: {e}")
-    return False
+        print(f"⚠️ {sembol} veri çekme hatası: {e}")
+        return False
+
 
 def resmi_kaynaktan_temel_veri_guncelle():
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
