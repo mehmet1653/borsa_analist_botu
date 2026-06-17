@@ -43,8 +43,8 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL") # Girintiyi en sola çek
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY") # Girintiyi en sola çek
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    BUCKET_NAME = "ajan_hafizasi"
-    FILE_NAME = "ajan_hafizasi.json"
+BUCKET_NAME = "ajan_hafizasi"
+FILE_NAME = "ajan_hafizasi.json"
 genai.configure(api_key=str(GEMINI_API_KEY).strip())
 model = genai.GenerativeModel('gemini-2.5-flash')
 
