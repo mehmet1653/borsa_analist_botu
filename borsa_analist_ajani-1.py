@@ -298,23 +298,22 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
-    su_an_utc = dt.datetime.utcnow()
-    tr_saati = su_an_utc + dt.timedelta(hours=3)
-    bugun_str = tr_saati.strftime('%Y-%m-%d')
-
-    gundem = dunya_gundemini_cek()
     piyasa_ozeti = ""
-    anlik_tahmin_verisi = {}
     
     for sembol in HAFIZA["takip_listesi"]:
+        # Veriyi çek (Fonksiyonun içine senin az önce eklediğimiz 'akıllı tamamlama' mantığını koyduk)
         veri = finansal_veri_topla(sembol)
+        
         if veri:
-            # YENİ: Haber analizini çağır
-            haber_yorumu = hisse_haber_analizi_yap(sembol)
-            
-            # Piyasa özetine haber analizini de ekle ki yapay zeka görsün
-            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri['fiyat']} | Haber: {haber_yorumu}"
-            anlik_tahmin_verisi[sembol] = {"fiyat": veri['fiyat'], "rsi": veri['rsi'], "haber": haber_yorumu}
+            # Burası raporun içine F/K, PD/DD, RSI'yı basan yer!
+            piyasa_ozeti += f"""
+### {sembol}
+* GÜNCEL FİYAT: {veri.get('fiyat', '-')}
+* TEMEL RASYOLAR: F/K: {veri.get('fk', '-')}, PD/DD: {veri.get('pddd', '-')}
+* TEKNİK GÖSTERGELER: RSI: {veri.get('rsi', '-')}, MACD: {veri.get('macd', '-')}
+* PORTFÖY DURUMU: {veri.get('portfoy_durumu', 'YOK')}
+* ANALİZ: {hisse_haber_analizi_yap(sembol)}
+"""
         time.sleep(0.5)
 
     tecrubeler_metni = "\n🧠 ÖĞRENİLEN DERSLER (SENSEİ KURALLARI):\n"
