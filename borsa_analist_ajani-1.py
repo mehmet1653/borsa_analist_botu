@@ -307,7 +307,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     piyasa_ozeti = ""
     anlik_tahmin_verisi = {}
     
-      for sembol in HAFIZA["takip_listesi"]:
+    for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
         if veri:
             # YENİ: Haber analizini çağır
@@ -445,7 +445,7 @@ def run_dummy_server():
     print(f"==> Kukla sunucu aktif.")
     server.serve_forever()
 
-if __name__ == "__main__":
+    if __name__ == "__main__":
     threading.Thread(target=run_dummy_server, daemon=True).start()
     print("🚀 Akıllı Borsa Ajanı Başlatıldı.")
     
