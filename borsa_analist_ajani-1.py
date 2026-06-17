@@ -44,36 +44,25 @@ def verileri_hazirla():
     return paket
 
 def ajani_calistir():
-    msg("🧠 Analiz motoru çalışıyor, veriler toplanıyor...")
+    msg("🧠 Analiz motoru çalışıyor...")
     guncel_veriler = verileri_hazirla()
     
-    prompt = f"""
-    Sen Mehmet'in özel borsa stratejistisin.
-    
-    GÜNCEL VERİLER: {json.dumps(guncel_veriler)}
-    GEÇMİŞ HAFIZA: {json.dumps(HAFIZA["gecmis_analiz"])}
-    
-    GÖREVİN:
-    1. Geçmiş tahmininle güncel fiyatı kıyasla. Tuttu mu? Hata yaptıysan sebebini yaz.
-    2. Tüm hisseler için 1 haftalık öngörü oluştur.
-    
-    FORMATI ASLA BOZMA:
-    ---
-    ### [SEMBOLE]
-    * Fiyat: [FİYAT] | RSI: [RSI] | MACD: [AL/SAT]
-    * GEÇMİŞ KIYAS: [Tuttu/Tutmadı - Hatanın Nedeni]
-    * YENİ TAHMİNİM: [OLUMLU/OLUMSUZ/TEMKİNLİ]
-    * 📌 1 HAFTALIK ÖNGÖRÜ: [Tahmin]
-    ---
-    """
-    
-    try:
-        # Tek bir istek atıyoruz, limit aşımı bitti
-        rapor = model.generate_content(prompt).text
-        msg(f"📊 **ÖĞRENEN ANALİZ RAPORU**\n\n{rapor}")
-        HAFIZA["gecmis_analiz"] = guncel_veriler
-    except Exception as e:
-        msg(f"⚠️ Hata: {str(e)[:50]}")
+    # HATA YAKALAMA VE BEKLEME DÖNGÜSÜ (Retry Mechanism)
+    for deneme in range(3): # 3 kez deneyecek
+        try:
+            prompt = f"..." # (Prompt aynı kalacak)
+            rapor = model.generate_content(prompt).text
+            msg(f"📊 **ANALİZ RAPORU**\n\n{rapor}")
+            HAFIZA["gecmis_analiz"] = guncel_veriler
+            return # Başarılı olduysa fonksiyondan çık
+        except Exception as e:
+            if "429" in str(e):
+                msg(f"⚠️ Yoğunluktan dolayı {deneme+1}. deneme başarısız. 20 sn bekliyorum...")
+                time.sleep(20) # 20 saniye bekle ve tekrar dene
+            else:
+                msg(f"⚠️ Hata: {str(e)[:30]}")
+                break
+
 
 # SERVER DÖNGÜSÜ
 if __name__ == "__main__":
