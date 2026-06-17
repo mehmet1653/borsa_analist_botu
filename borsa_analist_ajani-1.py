@@ -307,7 +307,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     piyasa_ozeti = ""
     anlik_tahmin_verisi = {}
     
-  for sembol in HAFIZA["takip_listesi"]:
+      for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
         if veri:
             # YENİ: Haber analizini çağır
