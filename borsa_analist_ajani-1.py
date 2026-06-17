@@ -307,12 +307,15 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     piyasa_ozeti = ""
     anlik_tahmin_verisi = {}
     
-    for sembol in HAFIZA["takip_listesi"]:
+  for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
         if veri:
-            # Buraya temel verileri de ekliyoruz ki yapay zeka görsün
-            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri['fiyat']} | RSI: {veri['rsi']} | MACD: {veri['macd']} | FK: {veri['fk']} | PD/DD: {veri['pddd']}"
-            anlik_tahmin_verisi[sembol] = {"fiyat": veri['fiyat'], "rsi": veri['rsi'], "macd": veri['macd']}
+            # YENİ: Haber analizini çağır
+            haber_yorumu = hisse_haber_analizi_yap(sembol)
+            
+            # Piyasa özetine haber analizini de ekle ki yapay zeka görsün
+            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri['fiyat']} | Haber: {haber_yorumu}"
+            anlik_tahmin_verisi[sembol] = {"fiyat": veri['fiyat'], "rsi": veri['rsi'], "haber": haber_yorumu}
         time.sleep(0.5)
 
     tecrubeler_metni = "\n🧠 ÖĞRENİLEN DERSLER (SENSEİ KURALLARI):\n"
@@ -402,7 +405,30 @@ def ajan_kendi_kendini_egit():
         telegram_mesaj_gonder(f"🧠 **AJAN GERİ BİLDİRİM VE ÖZ-EĞİTİM RAPORU** 🧠\n\nGeçmiş tahminlerimi denetledim ve şu stratejik kuralı hafızama kazıdım:\n\n`{ders}`\n\n🤖 *Sistem Durumu:* Ajan hatalarından ders çıkararak bir basamak daha akıllandı.")
     except Exception as e:
         print(f"Eğitim döngüsü hatası: {e}")
+        
+def hisse_haber_analizi_yap(sembol):
+    # Google arama fonksiyonunu kullan
+    query = f"{sembol.split('.')[0]} hisse haberleri son dakika"
+    arama_sonuclari = google_search_tool(query) 
+    
+    # Haberleri özetle ve analiz et
+    # AI'a şu komutu veriyoruz:
+    prompt = f"Aşağıdaki haberleri analiz et ve bu hisse için {sembol} olumlu mu olumsuz mu olduğunu kısa bir cümleyle özetle: {arama_sonuclari}"
+    yorum = ai_analiz_et(prompt) 
+    return yorum
+def google_search_tool(query):
+    # Basit bir Google arama simülasyonu veya haber başlığı çekme
+    # Gerçek API kullanmak istersen burayı Google Search API ile değiştirirsin
+    return "Haber başlıkları çekiliyor..." # Şimdilik taslak
 
+def ai_analiz_et(prompt):
+    # Gemini'yi kullanarak analizi yorumlatıyoruz
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except:
+        return "Haber analizi şu an yapılamadı."
+        
 # ==========================================
 # 🔄 ANA DÖNGÜ (7/24 DİNLEME VE RAPORLAMA)
 # ==========================================
