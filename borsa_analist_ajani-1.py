@@ -298,7 +298,9 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
-    anlik_tahmin_verisi = {} 
+    anlik_tahmin_verisi = {}
+    bugun_str = dt.datetime.now().strftime('%Y-%m-%d')
+
     piyasa_ozeti = ""
     
     for sembol in HAFIZA["takip_listesi"]:
