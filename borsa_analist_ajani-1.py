@@ -366,10 +366,10 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
         
         # Hafızaya kaydet
 
-HAFIZA["tahmin_gunlugu"][bugun_str] = {
-    "piyasa_durumu": anlik_tahmin_verisi, 
-    "ai_raporu": ai_raporu, # Tamamını kaydet
-    "ai_raporu_kesiti": ai_raporu[:500] # Kesiti buraya ekle (eğitim için lazım)
+       HAFIZA["tahmin_gunlugu"][bugun_str] = {
+       "piyasa_durumu": anlik_tahmin_verisi, 
+       "ai_raporu": ai_raporu, # Tamamını kaydet
+       "ai_raporu_kesiti": ai_raporu[:500] # Kesiti buraya ekle (eğitim için lazım)
 }
 
         hafizayi_kaydet()
