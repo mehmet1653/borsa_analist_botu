@@ -358,6 +358,23 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
         telegram_mesaj_gonder(f"📊 **AKILLI ANALİZ RAPORU**\n\n{ai_raporu}")
     except Exception as e: 
         telegram_mesaj_gonder(f"🤖 Yapay zeka sentez hatası: {e}")
+
+def hisse_haber_kaziyici(sembol):
+    hisse_kodu = sembol.split(".")[0].lower()
+    # Investing.com'dan haber çekiyoruz
+    url = f"https://tr.investing.com/equities/{hisse_kodu}-news"
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Haber başlıklarını bul
+        haberler = [h.text.strip() for h in soup.select('.articleItem .title')[:3]]
+        if not haberler: return "Güncel haber bulunamadı."
+        return ". ".join(haberler)
+    except:
+        return "Haber kaynağına ulaşılamadı."
+        
         
 
 # ... (Kodun geri kalanını [ajan_kendi_kendini_egit ve sonrası] aynen bırak)
@@ -405,22 +422,7 @@ def ajan_kendi_kendini_egit():
         telegram_mesaj_gonder(f"🧠 **AJAN GERİ BİLDİRİM VE ÖZ-EĞİTİM RAPORU** 🧠\n\nGeçmiş tahminlerimi denetledim ve şu stratejik kuralı hafızama kazıdım:\n\n`{ders}`\n\n🤖 *Sistem Durumu:* Ajan hatalarından ders çıkararak bir basamak daha akıllandı.")
     except Exception as e:
         print(f"Eğitim döngüsü hatası: {e}")
-        def hisse_haber_kaziyici(sembol):
-    hisse_kodu = sembol.split(".")[0].lower()
-    # Investing.com'dan haber çekiyoruz
-    url = f"https://tr.investing.com/equities/{hisse_kodu}-news"
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Haber başlıklarını bul
-        haberler = [h.text.strip() for h in soup.select('.articleItem .title')[:3]]
-        if not haberler: return "Güncel haber bulunamadı."
-        return ". ".join(haberler)
-    except:
-        return "Haber kaynağına ulaşılamadı."
-
 def hisse_haber_analizi_yap(sembol):
     # 1. Haberleri kazı
     haber_metni = hisse_haber_kaziyici(sembol)
