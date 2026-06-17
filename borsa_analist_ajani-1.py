@@ -341,25 +341,27 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
         son_tarih = list(HAFIZA["tahmin_gunlugu"].keys())[-1]
         gecmis_tahmin_notu = f"En son {son_tarih} tarihinde analiz yaptın. Şu anki fiyatları o günkü tahminlerinle kıyasla ve eğer yanıldıysan nedenini (indikatör yanılgısı, piyasa haberi vs.) raporda açıkça belirt."
 
-    prompt = f"""
+        prompt = f"""
     Sen rasyonel, geçmiş hatalarından ders çıkaran profesyonel bir finans yapay zekasısın.
     
     RAPOR TÜRÜ: {rapor_tipi}
-    GEÇMİŞ TAHMİN ANALİZİ: {gecmis_tahmin_notu}
     HAM VERİLER: {piyasa_ozeti}
     {tecrubeler_metni}
     
     GÖREVİN:
-    1. Geçmiş tahminlerini bugünle kıyasla, hatalıysan açıkla.
-    2. Teknik verileri yorumla.
-    3. Her hisse için:
+    Teknik verileri (Fiyat, RSI, MACD) ve temel verileri (F/K, PD/DD) birleştirerek yorumla.
+    
+    Her hisse için tam olarak şu formatı kullan:
     ---
     ### [HİSSE ADI]
+    * GÜNCEL FİYAT: [Fiyatı buraya yaz]
+    * TEMEL RASYOLAR: F/K: [F/K], PD/DD: [PD/DD]
     * GEÇMİŞ ANALİZİM: [Tuttu/Tutmadı - Hatanın Nedeni]
     * YENİ ÖNGÖRÜ: [OLUMLU/OLUMSUZ/TEMKİNLİ]
-    * Yorum: [Keskin teknik analiz]
+    * Yorum: [Teknik ve temel verileri harmanlayan keskin analiz]
     ---
     """
+        
     
     try: 
         ai_raporu = model.generate_content(prompt).text
