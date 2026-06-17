@@ -405,29 +405,34 @@ def ajan_kendi_kendini_egit():
         telegram_mesaj_gonder(f"🧠 **AJAN GERİ BİLDİRİM VE ÖZ-EĞİTİM RAPORU** 🧠\n\nGeçmiş tahminlerimi denetledim ve şu stratejik kuralı hafızama kazıdım:\n\n`{ders}`\n\n🤖 *Sistem Durumu:* Ajan hatalarından ders çıkararak bir basamak daha akıllandı.")
     except Exception as e:
         print(f"Eğitim döngüsü hatası: {e}")
+        def hisse_haber_kaziyici(sembol):
+    hisse_kodu = sembol.split(".")[0].lower()
+    # Investing.com'dan haber çekiyoruz
+    url = f"https://tr.investing.com/equities/{hisse_kodu}-news"
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
         
-def hisse_haber_analizi_yap(sembol):
-    # Google arama fonksiyonunu kullan
-    query = f"{sembol.split('.')[0]} hisse haberleri son dakika"
-    arama_sonuclari = google_search_tool(query) 
-    
-    # Haberleri özetle ve analiz et
-    # AI'a şu komutu veriyoruz:
-    prompt = f"Aşağıdaki haberleri analiz et ve bu hisse için {sembol} olumlu mu olumsuz mu olduğunu kısa bir cümleyle özetle: {arama_sonuclari}"
-    yorum = ai_analiz_et(prompt) 
-    return yorum
-def google_search_tool(query):
-    # Basit bir Google arama simülasyonu veya haber başlığı çekme
-    # Gerçek API kullanmak istersen burayı Google Search API ile değiştirirsin
-    return "Haber başlıkları çekiliyor..." # Şimdilik taslak
+        # Haber başlıklarını bul
+        haberler = [h.text.strip() for h in soup.select('.articleItem .title')[:3]]
+        if not haberler: return "Güncel haber bulunamadı."
+        return ". ".join(haberler)
+    except:
+        return "Haber kaynağına ulaşılamadı."
 
-def ai_analiz_et(prompt):
-    # Gemini'yi kullanarak analizi yorumlatıyoruz
+def hisse_haber_analizi_yap(sembol):
+    # 1. Haberleri kazı
+    haber_metni = hisse_haber_kaziyici(sembol)
+    if "bulunamadı" in haber_metni: return "Haber akışı yok."
+    
+    # 2. Gemini'ye analiz ettir
+    prompt = f"{sembol} hissesi için şu haber başlıkları var: '{haber_metni}'. Bu hisse için kısa bir olumlu/olumsuz/nötr analiz yap."
     try:
         response = model.generate_content(prompt)
-        return response.text
+        return response.text.replace("\n", " ")
     except:
-        return "Haber analizi şu an yapılamadı."
+        return "Analiz yapılamadı."
         
 # ==========================================
 # 🔄 ANA DÖNGÜ (7/24 DİNLEME VE RAPORLAMA)
