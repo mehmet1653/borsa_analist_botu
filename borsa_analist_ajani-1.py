@@ -82,36 +82,42 @@ hafizayi_yukle()
 # ==========================================
 # 📊 TEK BİR HİSSE İÇİN ANLIK RESMİ VERİ ÇEKİCİ
 # ==========================================
+
 def tek_hisse_resmi_veri_cek(sembol):
-    # .IS eklemesi yapma, yfinance kendi halleder
-    ticker = yf.Ticker(sembol)
+    hisse_kodu = sembol.split(".")[0]
+    # Gerçek bir tarayıcı gibi davranıyoruz ki engel yemeyelim
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    url = f"https://www.isyatirim.com.tr/tr-tr/analiz/hisse/Sayfalar/Sirket-Karti.aspx?hisse={hisse_kodu}"
+    
     try:
-        # Veriyi tazelemek için info'yu çağırıyoruz
-        info = ticker.info
+        res = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, "html.parser")
         
-        # trailingPE: F/K oranı, priceToBook: PD/DD oranı
-        fk = info.get("trailingPE")
-        pddd = info.get("priceToBook")
+        # İş Yatırım'daki tabloyu tarıyoruz
+        # F/K ve PD/DD verilerini içeren özel tabloları bul
+        tablo = soup.find("div", {"class": "card-summary"}) # Veya uygun tablo sınıfı
         
-        # Eğer veri gelirse hafızayı güncelle
-        if fk is not None and pddd is not None:
+        # Eğer tabloyu bulamazsan, metin arayalım:
+        fk_metin = soup.find(text="F/K")
+        pddd_metin = soup.find(text="PD/DD")
+        
+        if fk_metin and pddd_metin:
+            fk_val = fk_metin.find_next("span").text.strip().replace(",", ".")
+            pddd_val = pddd_metin.find_next("span").text.strip().replace(",", ".")
+            
             HAFIZA["temel_veriler"][sembol] = {
-                "fk": f"{float(fk):.2f}",
-                "pddd": f"{float(pddd):.2f}",
+                "fk": fk_val,
+                "pddd": pddd_val,
                 "ihracat": "-",
                 "ozsermaye_kar": "-"
             }
-            print(f"✅ {sembol} verisi güncellendi: FK={fk}, PD/DD={pddd}")
             return True
-        else:
-            print(f"⚠️ {sembol} için güncel temel veri bulunamadı.")
-            return False
-            
     except Exception as e:
-        print(f"⚠️ {sembol} veri çekme hatası: {e}")
-        return False
-
-
+        print(f"⚠️ Otomatik çekim başarısız: {e}")
+    return False
+    
 def resmi_kaynaktan_temel_veri_guncelle():
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
     guncellenenler = []
