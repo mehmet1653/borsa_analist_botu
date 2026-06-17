@@ -44,24 +44,17 @@ def verileri_hazirla():
     return paket
 
 def ajani_calistir():
-    msg("🧠 Analiz motoru çalışıyor...")
+    msg("🧠 Analiz başlıyor...")
     guncel_veriler = verileri_hazirla()
     
-    # HATA YAKALAMA VE BEKLEME DÖNGÜSÜ (Retry Mechanism)
-    for deneme in range(3): # 3 kez deneyecek
-        try:
-            prompt = f"..." # (Prompt aynı kalacak)
-            rapor = model.generate_content(prompt).text
-            msg(f"📊 **ANALİZ RAPORU**\n\n{rapor}")
-            HAFIZA["gecmis_analiz"] = guncel_veriler
-            return # Başarılı olduysa fonksiyondan çık
-        except Exception as e:
-            if "429" in str(e):
-                msg(f"⚠️ Yoğunluktan dolayı {deneme+1}. deneme başarısız. 20 sn bekliyorum...")
-                time.sleep(20) # 20 saniye bekle ve tekrar dene
-            else:
-                msg(f"⚠️ Hata: {str(e)[:30]}")
-                break
+    # KESİNLİKLE HATA ALMAYACAK BASİT VE NET PROMPT
+    prompt = f"Sen Mehmet'in borsa stratejistisin. Şu verileri kullanarak 1 haftalık öngörü oluştur: {json.dumps(guncel_veriler)}. Her hisse için sadece şunu yaz: Sembol - Fiyat - Öngörü (OLUMLU/OLUMSUZ/TEMKİNLİ) ve nedenini kısaca yaz."
+    
+    try:
+        rapor = model.generate_content(prompt).text
+        msg(f"📊 **HIZLI ANALİZ:**\n\n{rapor}")
+    except Exception as e:
+        msg("⚠️ Analiz şu an çok yoğun, lütfen 1 dakika sonra tekrar /analiz yaz.")
 
 
 # SERVER DÖNGÜSÜ
