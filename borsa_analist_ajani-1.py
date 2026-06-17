@@ -37,10 +37,12 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
-    GEMINI_API_KEY = "AQ.Ab8RN6K_wraDxTNfR-qaqeJHO40gdpJLWp3o8jWYnR3IYgi7PA"
- SUPABASE_URL = os.environ.get("SUPABASE_URL")
-    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    GEMINI_API_KEY = "AQ.Ab8RN6K_..."
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL") # Girintiyi en sola çek
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY") # Girintiyi en sola çek
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
     BUCKET_NAME = "ajan_hafizasi"
     FILE_NAME = "ajan_hafizasi.json"
 genai.configure(api_key=str(GEMINI_API_KEY).strip())
