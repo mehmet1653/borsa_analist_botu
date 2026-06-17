@@ -11,6 +11,7 @@ import google.generativeai as genai
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import datetime as dt
+from supabase import create_client, Client
 
 # ==========================================
 # 🛠️ MEHMET REİS BULUT VE GENİŞLETİLMİŞ HAFIZA SİSTEMİ
@@ -37,31 +38,44 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
     GEMINI_API_KEY = "AQ.Ab8RN6K_wraDxTNfR-qaqeJHO40gdpJLWp3o8jWYnR3IYgi7PA"
-
+ SUPABASE_URL = os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    BUCKET_NAME = "ajan_hafizasi"
+    FILE_NAME = "ajan_hafizasi.json"
 genai.configure(api_key=str(GEMINI_API_KEY).strip())
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-DATA_FILE = "ajan_hafizasi.json"
-
-if os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "r") as f:
-        try:
-            HAFIZA = json.load(f)
-        except:
-            HAFIZA = {}
-else:
-    HAFIZA = {}
-
-# Eksik anahtarları güvenli şekilde tamamla
-if "takip_listesi" not in HAFIZA: HAFIZA["takip_listesi"] = TAKIP_YEDEK
-if "portfoy" not in HAFIZA: HAFIZA["portfoy"] = PORTFOY_YEDEK
-if "temel_veriler" not in HAFIZA: HAFIZA["temel_veriler"] = TEMEL_VERILER_YEDEK
-if "tahmin_gunlugu" not in HAFIZA: HAFIZA["tahmin_gunlugu"] = {}
-if "ogrenilen_dersler" not in HAFIZA: HAFIZA["ogrenilen_dersler"] = []
+def hafizayi_yukle():
+    global HAFIZA
+    try:
+        response = supabase.storage.from_(BUCKET_NAME).download(FILE_NAME)
+        HAFIZA = json.loads(response)
+        print("✅ Hafıza buluttan yüklendi.")
+    except:
+        print("⚠️ Bulut hafıza boş, varsayılanlar yükleniyor.")
+        HAFIZA = {
+            "takip_listesi": TAKIP_YEDEK,
+            "portfoy": PORTFOY_YEDEK,
+            "temel_veriler": TEMEL_VERILER_YEDEK,
+            "tahmin_gunlugu": {},
+            "ogrenilen_dersler": [],
+            "last_update_id": 0
+        }
 
 def hafizayi_kaydet():
-    with open(DATA_FILE, "w") as f:
-        json.dump(HAFIZA, f, indent=4)
+    try:
+        file_content = json.dumps(HAFIZA, indent=4).encode('utf-8')
+        supabase.storage.from_(BUCKET_NAME).upload(
+            path=FILE_NAME,
+            file=file_content,
+            file_options={"content-type": "application/json", "upsert": "true"}
+        )
+    except Exception as e:
+        print(f"⚠️ Supabase kayıt hatası: {e}")
+
+# Sistemi başlat
+hafizayi_yukle()
 
 # ==========================================
 # 📊 TEK BİR HİSSE İÇİN ANLIK RESMİ VERİ ÇEKİCİ
