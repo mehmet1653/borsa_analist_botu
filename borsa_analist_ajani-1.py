@@ -84,9 +84,19 @@ hafizayi_yukle()
 # ==========================================
 
 def tek_hisse_resmi_veri_cek(sembol):
-    # 1. Öncelik: Manuel Veri İstasyonu
-    if sembol in VERI_KUTUSU:
-        data = VERI_KUTUSU[sembol]
+    ticker = yf.Ticker(sembol)
+    info = ticker.info
+    fk = info.get("trailingPE")
+    
+    # Eğer Yahoo PE vermezse, VERI_KUTUSU'ndakini kullan
+    if not fk and sembol in VERI_KUTUSU:
+        fk = VERI_KUTUSU[sembol]["fk"]
+        pddd = VERI_KUTUSU[sembol]["pddd"]
+    else:
+        pddd = info.get("priceToBook")
+    
+    # Şimdi HAFIZA'ya yaz...
+        
         HAFIZA["temel_veriler"][sembol] = {
             "fk": data["fk"], "pddd": data["pddd"],
             "ihracat": "-", "ozsermaye_kar": "-"
@@ -235,10 +245,18 @@ def dunya_gundemini_cek():
     return "\n".join(haberler)
 
 def finansal_veri_topla(sembol):
-    # Yahoo finance düzeltmesi (.IS veya kripto uyumluluğu)
-    target_sembol = sembol
-    if ".IS" not in sembol and "-" not in sembol and sembol != "GC=F" and sembol != "USDTRY=X":
-        target_sembol = f"{sembol}-USD" # Hatalı kriptoları otomatik çevir
+    # ... (yf.download kodunun olduğu yer)
+    if df.empty: 
+        print(f"⚠️ {sembol} için veri alınamadı, hafızadaki son veriye bakılıyor...")
+        # Buraya: Eğer HAFIZA['son_fiyatlar'] varsa onu döndür
+        return HAFIZA.get("son_fiyatlar", {}).get(sembol, None)
+    
+    # Veri geldiyse hafızayı güncelle
+    guncel_fiyat = float(df['Close'].iloc[-1])
+    if "son_fiyatlar" not in HAFIZA: HAFIZA["son_fiyatlar"] = {}
+    HAFIZA["son_fiyatlar"][sembol] = guncel_fiyat
+    # ... (geri kalanı aynı)
+    
 
     for deneme in range(3):
         try:
