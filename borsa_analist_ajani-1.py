@@ -123,20 +123,20 @@ def tek_hisse_resmi_veri_cek(sembol):
 
     
     def resmi_kaynaktan_temel_veri_guncelle():
-        print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
-        guncellenenler = []
-            for sembol in HAFIZA["takip_listesi"]:
-            veri = finansal_veri_topla(sembol)
-        if veri:
-            anlik_tahmin_verisi[sembol] = veri
-            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri['fiyat']} | RSI: {veri['rsi']} | F/K: {veri['fk']} | PD/DD: {veri['pddd']} | Durum: {veri['portfoy_durumu']}"
+    print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
+    guncellenenler = []
+    
+    # Doğru girintileme burada başlıyor
+    for sembol in HAFIZA.get("takip_listesi", []):
+        if tek_hisse_resmi_veri_cek(sembol):
+            hisse_kodu = sembol.split(".")[0]
+            guncellenenler.append(hisse_kodu)
         time.sleep(1)
-            
             
     if guncellenenler:
         hafizayi_kaydet()
         telegram_mesaj_gonder(f"🔄 *Resmi Temel Veri Güncellemesi Tamamlandı!*\nGece Kontrolü Yapılan Hisseler: {', '.join(guncellenenler)}\nYapay zeka rasyoları %100 güvenli finans havuzundan tazeledi.")
-
+        
 # ==========================================
 # ⚙️ TELEGRAM İLETİŞİM FONKSİYONLARI
 # ==========================================
