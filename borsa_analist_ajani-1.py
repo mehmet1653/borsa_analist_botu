@@ -125,7 +125,7 @@ def tek_hisse_resmi_veri_cek(sembol):
     def resmi_kaynaktan_temel_veri_guncelle():
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
     guncellenenler = []
-        for sembol in HAFIZA["takip_listesi"]:
+            for sembol in HAFIZA["takip_listesi"]:
             veri = finansal_veri_topla(sembol)
         if veri:
             anlik_tahmin_verisi[sembol] = veri
