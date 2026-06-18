@@ -245,71 +245,61 @@ def dunya_gundemini_cek():
     return "\n".join(haberler)
 
 def finansal_veri_topla(sembol):
-    # ... (yf.download kodunun olduğu yer)
-    if df.empty: 
-        print(f"⚠️ {sembol} için veri alınamadı, hafızadaki son veriye bakılıyor...")
-        # Buraya: Eğer HAFIZA['son_fiyatlar'] varsa onu döndür
-        return HAFIZA.get("son_fiyatlar", {}).get(sembol, None)
-    
-    # Veri geldiyse hafızayı güncelle
-    guncel_fiyat = float(df['Close'].iloc[-1])
+    # Eğer son fiyatlar hafızası yoksa başlat
     if "son_fiyatlar" not in HAFIZA: HAFIZA["son_fiyatlar"] = {}
-    HAFIZA["son_fiyatlar"][sembol] = guncel_fiyat
-    # ... (geri kalanı aynı)
     
-
+    # 3 kere deneme döngüsü
     for deneme in range(3):
         try:
-            df = yf.download(target_sembol, period="1y", progress=False)
-            if df.empty or 'Close' not in df.columns or len(df) < 30:
+            df = yf.download(sembol, period="1y", progress=False)
+            if df.empty or 'Close' not in df.columns:
                 time.sleep(1)
                 continue
                 
+            # Veri düzenleme
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.droplevel(1)
-                
             df.columns = [str(col).strip() for col in df.columns]
             
             guncel_fiyat = float(df['Close'].iloc[-1])
-            close_series = df['Close'].astype(float)
+            HAFIZA["son_fiyatlar"][sembol] = guncel_fiyat # Hafızaya kaydet
             
+            # İndikatörler
+            close_series = df['Close'].astype(float)
             df['RSI'] = ta.momentum.rsi(close_series, window=14)
             df['SMA_50'] = ta.trend.sma_indicator(close_series, window=50)
             df['MACD'] = ta.trend.macd(close_series)
             df['MACD_Signal'] = ta.trend.macd_signal(close_series)
             df['ADX'] = ta.trend.adx(df['High'].squeeze(), df['Low'].squeeze(), close_series, window=14)
             
+            # Portföy notu
             portfoy_notu = "YOK"
             if sembol in HAFIZA["portfoy"]:
                 p = HAFIZA["portfoy"][sembol]
                 kar_zarar = ((guncel_fiyat - p['maliyet']) / p['maliyet']) * 100
-                portfoy_notu = f"KULLANICININ ELİNDE VAR! Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f}, Güncel Kâr/Zarar: %{kar_zarar:.2f}"
+                portfoy_notu = f"Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f}, Kâr/Zarar: %{kar_zarar:.2f}"
 
-            macd_val = df['MACD'].iloc[-1]
-            macd_sig = df['MACD_Signal'].iloc[-1]
-            macd_durum = "AL SİNYALİ" if macd_val > macd_sig else "SAT SİNYALİ"
-            adx_val = df['ADX'].iloc[-1]
-            adx_durum = "GÜÇLÜ TREND" if adx_val > 25 else "ZAYIF TREND / YATAY"
-
+            # Analiz verileri
             temel = HAFIZA.get("temel_veriler", {}).get(sembol, {"fk": "-", "pddd": "-", "ihracat": "-", "ozsermaye_kar": "-"})
-
+            
             return {
-                "fiyat": guncel_fiyat,
+                "fiyat": f"{guncel_fiyat:.2f}",
                 "rsi": f"{df['RSI'].iloc[-1]:.2f}",
                 "sma_50": f"{df['SMA_50'].iloc[-1]:.2f}",
-                "macd": f"{macd_durum}",
-                "adx": f"{adx_durum} ({adx_val:.2f})",
+                "macd": "AL" if df['MACD'].iloc[-1] > df['MACD_Signal'].iloc[-1] else "SAT",
+                "adx": f"{df['ADX'].iloc[-1]:.2f}",
                 "fk": temel.get("fk", "-"),
                 "pddd": temel.get("pddd", "-"),
-                "ihracat": temel.get("ihracat", "-"),
-                "ozsermaye_kar": temel.get("ozsermaye_kar", "-"),
                 "portfoy_durumu": portfoy_notu
             }
-        except Exception as e:
-            print(f"⚠️ {sembol} veri çekme hatası: {e}")
+        except:
             time.sleep(1)
             
-    return None
+    # Eğer internetten çekemezsek hafızadaki son fiyatı dön
+    son_fiyat = HAFIZA["son_fiyatlar"].get(sembol, 0)
+    return {"fiyat": f"{son_fiyat:.2f}", "rsi": "N/A", "fk": "-", "pddd": "-", "portfoy_durumu": "YOK"}
+    
+
 
 
 # ==========================================
