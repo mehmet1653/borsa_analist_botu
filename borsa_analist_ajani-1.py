@@ -122,11 +122,11 @@ def tek_hisse_resmi_veri_cek(sembol):
         return False
 
     
-def resmi_kaynaktan_temel_veri_guncelle():
+    def resmi_kaynaktan_temel_veri_guncelle():
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
     guncellenenler = []
         for sembol in HAFIZA["takip_listesi"]:
-        veri = finansal_veri_topla(sembol)
+            veri = finansal_veri_topla(sembol)
         if veri:
             anlik_tahmin_verisi[sembol] = veri
             piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri['fiyat']} | RSI: {veri['rsi']} | F/K: {veri['fk']} | PD/DD: {veri['pddd']} | Durum: {veri['portfoy_durumu']}"
