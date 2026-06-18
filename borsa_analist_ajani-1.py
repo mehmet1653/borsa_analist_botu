@@ -419,18 +419,15 @@ def ajan_kendi_kendini_egit():
     except Exception as e:
         print(f"Eğitim döngüsü hatası: {e}")
         
-def hisse_haber_analizi_yap(sembol):
-    # 1. Haberleri kazı
-    haber_metni = hisse_haber_kaziyici(sembol)
-    if "bulunamadı" in haber_metni: return "Haber akışı yok."
-    
-    # 2. Gemini'ye analiz ettir
-    prompt = f"{sembol} hissesi için şu haber başlıkları var: '{haber_metni}'. Bu hisse için kısa bir olumlu/olumsuz/nötr analiz yap."
+def hisse_haber_kaziyici(sembol):
     try:
-        response = model.generate_content(prompt)
-        return response.text.replace("\n", " ")
+        ticker = yf.Ticker(sembol)
+        news = ticker.news
+        if not news: return "Haber akışı sakin."
+        return ". ".join([n['title'] for n in news[:2]])
     except:
-        return "Analiz yapılamadı."
+        return "Haber akışı alınamadı."
+        
         
 # ==========================================
 # 🔄 ANA DÖNGÜ (7/24 DİNLEME VE RAPORLAMA)
