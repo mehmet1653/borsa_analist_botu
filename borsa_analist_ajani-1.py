@@ -318,37 +318,40 @@ def finansal_veri_topla(sembol):
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     anlik_tahmin_verisi = {}
     piyasa_ozeti = ""
-    gundem = dunya_gundemini_cek() # KÜRESEL GÜNDEMİ ÇEK
+    
+    # 1. TETİKLE: Küresel gündemi kesin al
+    gundem = dunya_gundemini_cek() 
     
     for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
-        haber_sonucu = hisse_haber_analizi_yap(sembol) # HABERLERİ BURADA TETİKLİYORUZ
+        # 2. TETİKLE: Haber analizini mutlaka çağır
+        haber_sonucu = hisse_haber_analizi_yap(sembol) 
         
         if veri:
             anlik_tahmin_verisi[sembol] = veri 
             piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | Haber: {haber_sonucu} | RSI: {veri.get('rsi')} | MACD: {veri.get('macd')} | FK: {veri.get('fk')}"
     
-    # RAPOR PROMPT'U (HABER ODAKLI)
+    # 3. ZORLA: Gemini'ye verileri rapora basması için kesin format ver
     prompt = f"""
-    Sen rasyonel bir borsa uzmanısın.
+    Sen rasyonel bir borsa uzmanısın. Sana verilen verileri kullanarak aşağıdaki raporu hazırla.
+    
     KÜRESEL GÜNDEM: {gundem}
     HİSSE ANALİZİ (Teknik + Haber): {piyasa_ozeti}
     
     GÖREVİN:
-    1. Önce dünya gündeminin (Fed, Savaş, Enflasyon) piyasayı nasıl etkilediğini 2 cümleyle yaz.
-    2. Her hisse için Haber Analizi ve Teknik verileri sentezle.
+    1. KÜRESEL GÜNDEM (Faiz, Enflasyon, Savaş) piyasayı nasıl etkiliyor? Özetle.
+    2. Aşağıdaki formatı kullanarak her hisseyi analiz et (Rakamları mutlaka raporda göster):
     
-    Formatı kesinlikle bozma:
     ### [HİSSE ADI]
     * GÜNCEL FİYAT: [Fiyat]
+    * TEKNİK: RSI: [RSI] | MACD: [MACD]
     * HABER ANALİZİ: [Haberden çıkan sonuç]
-    * YENİ ÖNGÖRÜ: [OLUMLU/OLUMSUZ/TEMKİNLİ]
-    * Yorum: [Teknik + Haber + Küresel Sentez]
+    * YORUM: [Teknik + Haber + Küresel Sentez]
     """
     
     try:
         ai_raporu = model.generate_content(prompt).text
-        telegram_mesaj_gonder(f"📊 **AKILLI ANALİZ RAPORU**\n\n{ai_raporu}")
+        telegram_mesaj_gonder(f"📊 **AKILLI ANALİZ RAPORU | {rapor_tipi}**\n\n{ai_raporu}")
     except Exception as e:
         telegram_mesaj_gonder(f"🤖 Sentez hatası: {e}")
         
