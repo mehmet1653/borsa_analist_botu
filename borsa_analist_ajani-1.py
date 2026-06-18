@@ -316,38 +316,32 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
-    telegram_mesaj_gonder("🚀 Haberler ve teknik veriler sentezleniyor...")
+    telegram_mesaj_gonder("🚀 Tüm liste tek seferde sentezleniyor (Kota dostu mod)...")
     takip_listesi = HAFIZA["takip_listesi"]
     
-    for i in range(0, len(takip_listesi), 2): # 2'şerli gruplar = Daha az kota harcar
-        grup = takip_listesi[i:i+2]
-        metin = ""
-        for s in grup:
-            v = finansal_veri_topla(s)
-            h = hisse_haber_kaziyici(s)
-            metin += f"\n\nHİSSE: {s}\n- Haberler: {h}\n- Veriler: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, F/K:{v['fk']}, PD/DD:{v['pddd']}"
-        
-        # PROMPT'U TAM İSTEDİĞİN GİBİ KURGULADIK:
-        prompt = f"""
-        Sen bir borsa stratejistisin. Aşağıdaki haberleri ve teknik verileri sentezle.
-        VERİLER: {metin}
-        
-        GÖREV: Haberlerin hisseye etkisini analiz et (örneğin Trump açıklaması veya bilanço gibi) ve teknik verilerle harmanla.
-        
-        FORMAT (Her hisse için):
-        ### {grup}
-        * KARAR: [OLUMLU / OLUMSUZ / TEMKİNLİ]
-        * HABER ETKİSİ: [Haberler fiyatı nasıl etkiler? (Örn: Intel örneği)]
-        * TEKNİK GÖRÜNÜM: RSI: [RSI], MACD: [MACD], F/K: [F/K], PD/DD: [PD/DD]
-        * ÖNGÖRÜ: [Haftalık beklenti: Yükseliş mi, Düşüş mü, Düzeltme mi?]
-        """
-        
-        try:
-            cevap = model.generate_content(prompt).text
-            telegram_mesaj_gonder(cevap)
-        except:
-            telegram_mesaj_gonder("⚠️ Kota limiti veya bağlantı hatası.")
-            
+    # Tüm listeyi tek metinde topla
+    toplu_metin = ""
+    for s in takip_listesi:
+        v = finansal_veri_topla(s)
+        h = hisse_haber_kaziyici(s)
+        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, F/K:{v['fk']}. HABER: {h}"
+    
+    # TEK İSTEKLE İŞİ BİTİR
+    prompt = f"""
+    Sen bir borsa stratejistisin. Aşağıdaki tüm listeyi tek bir tabloda/listede analiz et.
+    VERİLER: {toplu_metin}
+    
+    Format:
+    ### HİSSE | KARAR | HABER ETKİSİ | TEKNİK (RSI/MACD/FK) | ÖNGÖRÜ
+    (Hepsini kısa, net maddelerle yaz, destan yazma!)
+    """
+    
+    try:
+        cevap = model.generate_content(prompt).text
+        telegram_mesaj_gonder(cevap)
+    except Exception as e:
+        telegram_mesaj_gonder(f"⚠️ Hata: {e}")
+    
 def hisse_haber_kaziyici(sembol):
     try:
         ticker = yf.Ticker(sembol)
