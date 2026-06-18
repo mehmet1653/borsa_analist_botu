@@ -315,48 +315,50 @@ def finansal_veri_topla(sembol):
 # ==========================================
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
-def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
-    telegram_mesaj_gonder(f"⏳ *{rapor_tipi}* başlatılıyor... Veriler işleniyor.")
-    gundem = dunya_gundemini_cek()
+def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
+    telegram_mesaj_gonder("🚀 Haberler ve teknik veriler sentezleniyor...")
     takip_listesi = HAFIZA["takip_listesi"]
     
-    # 3'erli gruplar halinde analiz et ki timeout yemesin
-    for i in range(0, len(takip_listesi), 3):
-        grup = takip_listesi[i:i+3]
-        piyasa_ozeti = ""
+    for i in range(0, len(takip_listesi), 2): # 2'şerli gruplar = Daha az kota harcar
+        grup = takip_listesi[i:i+2]
+        metin = ""
+        for s in grup:
+            v = finansal_veri_topla(s)
+            h = hisse_haber_kaziyici(s)
+            metin += f"\n\nHİSSE: {s}\n- Haberler: {h}\n- Veriler: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, F/K:{v['fk']}, PD/DD:{v['pddd']}"
         
-        for sembol in grup:
-            veri = finansal_veri_topla(sembol)
-            haber = hisse_haber_kaziyici(sembol)
-            if veri:
-                piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | Haber: {haber} | RSI: {veri.get('rsi')} | MACD: {veri.get('macd')} | FK: {veri.get('fk')}"
-        
+        # PROMPT'U TAM İSTEDİĞİN GİBİ KURGULADIK:
         prompt = f"""
-        Sen bir borsa uzmanısın. Şu hisseleri analiz et: {piyasa_ozeti}.
-        KÜRESEL GÜNDEM: {gundem}.
+        Sen bir borsa stratejistisin. Aşağıdaki haberleri ve teknik verileri sentezle.
+        VERİLER: {metin}
         
-        Format (Rakamları mutlaka yaz):
-        ### [HİSSE ADI]
-        * GÜNCEL FİYAT: [Fiyat]
-        * TEKNİK: RSI: [RSI] | MACD: [MACD]
-        * HABER ANALİZİ: [Haber özeti]
-        * YORUM: [Teknik + Haber + Gündem sentezi]
+        GÖREV: Haberlerin hisseye etkisini analiz et (örneğin Trump açıklaması veya bilanço gibi) ve teknik verilerle harmanla.
+        
+        FORMAT (Her hisse için):
+        ### {grup}
+        * KARAR: [OLUMLU / OLUMSUZ / TEMKİNLİ]
+        * HABER ETKİSİ: [Haberler fiyatı nasıl etkiler? (Örn: Intel örneği)]
+        * TEKNİK GÖRÜNÜM: RSI: [RSI], MACD: [MACD], F/K: [F/K], PD/DD: [PD/DD]
+        * ÖNGÖRÜ: [Haftalık beklenti: Yükseliş mi, Düşüş mü, Düzeltme mi?]
         """
+        
         try:
-            ai_raporu = model.generate_content(prompt).text
-            telegram_mesaj_gonder(f"📊 **BÖLÜM {int(i/3)+1}**\n\n{ai_raporu}")
-            time.sleep(2) # Telegram limitine takılmamak için kısa bekleme
-        except Exception as e:
-            telegram_mesaj_gonder(f"⚠️ Analiz hatası: {e}")
+            cevap = model.generate_content(prompt).text
+            telegram_mesaj_gonder(cevap)
+        except:
+            telegram_mesaj_gonder("⚠️ Kota limiti veya bağlantı hatası.")
+            
 def hisse_haber_kaziyici(sembol):
     try:
         ticker = yf.Ticker(sembol)
         news = ticker.news
-        if not news: return "Haber akışı sakin."
-        return ". ".join([n['title'] for n in news[:2]])
+        if not news: return "Haber yok (Sakin)"
+        # Haber başlıklarını birleştir ve önemli kelimeleri öne çıkar
+        ozet = " | ".join([n['title'] for n in news[:3]])
+        return ozet
     except:
-        return "Haber akışı alınamadı."
-
+        return "Haber akışı hata verdi."
+        
 
 def ajan_kendi_kendini_egit():
     print("🧠 Yapay zeka öz-yansıtma ve eğitim modülü çalışıyor...")
