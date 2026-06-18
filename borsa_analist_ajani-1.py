@@ -121,7 +121,7 @@ def tek_hisse_resmi_veri_cek(sembol):
     except:
         return False
 
-    def resmi_kaynaktan_temel_veri_guncelle():
+def resmi_kaynaktan_temel_veri_guncelle():
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
     guncellenenler = []
     
