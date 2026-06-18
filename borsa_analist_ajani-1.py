@@ -317,61 +317,41 @@ def finansal_veri_topla(sembol):
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     anlik_tahmin_verisi = {}
-    bugun_str = dt.datetime.now().strftime('%Y-%m-%d')
     piyasa_ozeti = ""
+    gundem = dunya_gundemini_cek() # KÜRESEL GÜNDEMİ ÇEK
     
-    # FOR döngüsü 4 boşluk içeride
     for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
-        haber_sonucu = hisse_haber_analizi_yap
+        haber_sonucu = hisse_haber_analizi_yap(sembol) # HABERLERİ BURADA TETİKLİYORUZ
         
         if veri:
             anlik_tahmin_verisi[sembol] = veri 
-            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | Haberler: {haber_sonucu} | RSI: {veri.get('rsi')} | MACD: {veri.get('macd')} | F/K: {veri.get('fk')}"
-            time.sleep(1)
-
-    tecrubeler_metni = "\n🧠 ÖĞRENİLEN DERSLER (SENSEİ KURALLARI):\n"
-    if HAFIZA.get("ogrenilen_dersler"):
-        for d in HAFIZA["ogrenilen_dersler"][-5:]: 
-            tecrubeler_metni += f"- {d['ders']}\n"
-    else:
-        tecrubeler_metni += "- Henüz ders çıkarılmadı, ilk analizler yapılıyor.\n"
-
-    # Prompt'u IF bloğunun dışına çıkardım ve daha net hale getirdim
+            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | Haber: {haber_sonucu} | RSI: {veri.get('rsi')} | MACD: {veri.get('macd')} | FK: {veri.get('fk')}"
     
+    # RAPOR PROMPT'U (HABER ODAKLI)
     prompt = f"""
-    Sen rasyonel, geçmiş hatalarından ders çıkaran profesyonel bir finans yapay zekasısın.
-    
-    RAPOR TÜRÜ: {rapor_tipi}
-    GÜNCEL PİYASA VERİLERİ (Fiyat, RSI, MACD, F/K, PD/DD dahil): {piyasa_ozeti}
-    {tecrubeler_metni}
+    Sen rasyonel bir borsa uzmanısın.
+    KÜRESEL GÜNDEM: {gundem}
+    HİSSE ANALİZİ (Teknik + Haber): {piyasa_ozeti}
     
     GÖREVİN:
-    Gelen verileri (Fiyat, RSI, MACD, F/K, PD/DD) analiz et. 
-    Veri eksikse (örn: 'fk' '-' ise) bunu belirt ama 'Mevcut Değil' diyerek analizi kısıtlama, elindeki diğer verilerle (RSI ve MACD) yorumunu yap.
-    Format:
+    1. Önce dünya gündeminin (Fed, Savaş, Enflasyon) piyasayı nasıl etkilediğini 2 cümleyle yaz.
+    2. Her hisse için Haber Analizi ve Teknik verileri sentezle.
+    
+    Formatı kesinlikle bozma:
     ### [HİSSE ADI]
     * GÜNCEL FİYAT: [Fiyat]
-    * TEMEL RASYOLAR: F/K: [FK], PD/DD: [PD/DD]
-    * MACD DURUMU: [MACD]
+    * HABER ANALİZİ: [Haberden çıkan sonuç]
     * YENİ ÖNGÖRÜ: [OLUMLU/OLUMSUZ/TEMKİNLİ]
-    * Yorum: [Verileri harmanla]
+    * Yorum: [Teknik + Haber + Küresel Sentez]
     """
     
-    try: 
+    try:
         ai_raporu = model.generate_content(prompt).text
-        
-        HAFIZA["tahmin_gunlugu"][bugun_str] = {
-            "piyasa_durumu": anlik_tahmin_verisi, 
-            "ai_raporu": ai_raporu, 
-            "ai_raporu_kesiti": ai_raporu[:500] 
-        }
-
-        hafizayi_kaydet()
         telegram_mesaj_gonder(f"📊 **AKILLI ANALİZ RAPORU**\n\n{ai_raporu}")
-    except Exception as e: 
-        telegram_mesaj_gonder(f"🤖 Yapay zeka sentez hatası: {e}")
-
+    except Exception as e:
+        telegram_mesaj_gonder(f"🤖 Sentez hatası: {e}")
+        
 def hisse_haber_kaziyici(sembol):
     hisse_kodu = sembol.split(".")[0].lower()
     # Investing.com'dan haber çekiyoruz
