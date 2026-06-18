@@ -250,7 +250,6 @@ def finansal_veri_topla(sembol):
     # Eğer son fiyatlar hafızası yoksa başlat
     if "son_fiyatlar" not in HAFIZA: HAFIZA["son_fiyatlar"] = {}
     
-    # 3 kere deneme döngüsü
     for deneme in range(3):
         try:
             df = yf.download(sembol, period="1y", progress=False)
@@ -264,7 +263,7 @@ def finansal_veri_topla(sembol):
             df.columns = [str(col).strip() for col in df.columns]
             
             guncel_fiyat = float(df['Close'].iloc[-1])
-            HAFIZA["son_fiyatlar"][sembol] = guncel_fiyat # Hafızaya kaydet
+            HAFIZA["son_fiyatlar"][sembol] = guncel_fiyat
             
             # İndikatörler
             close_series = df['Close'].astype(float)
@@ -274,34 +273,44 @@ def finansal_veri_topla(sembol):
             df['MACD_Signal'] = ta.trend.macd_signal(close_series)
             df['ADX'] = ta.trend.adx(df['High'].squeeze(), df['Low'].squeeze(), close_series, window=14)
             
-            # Portföy notu
             portfoy_notu = "YOK"
             if sembol in HAFIZA["portfoy"]:
                 p = HAFIZA["portfoy"][sembol]
                 kar_zarar = ((guncel_fiyat - p['maliyet']) / p['maliyet']) * 100
                 portfoy_notu = f"Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f}, Kâr/Zarar: %{kar_zarar:.2f}"
 
-            # Analiz verileri
-            temel = HAFIZA.get("temel_veriler", {}).get(sembol, VERI_KUTUSU.get(sembol, {"fk": "N/A", "pddd": "N/A"}))
+            # 🛑 İŞTE KRİTİK DEĞİŞİKLİK BURADA: VERI_KUTUSU'NU DOĞRUDAN KULLAN 🛑
+            fk_degeri = "-"
+            pddd_degeri = "-"
+            
+            # 1. Önce senin yazdığın manuel VERI_KUTUSU'na baksın
+            if sembol in VERI_KUTUSU:
+                fk_degeri = VERI_KUTUSU[sembol]["fk"]
+                pddd_degeri = VERI_KUTUSU[sembol]["pddd"]
+            # 2. Eğer VERI_KUTUSU'nda yoksa HAFIZA'ya (Supabase'e) baksın
+            elif sembol in HAFIZA.get("temel_veriler", {}):
+                fk_degeri = HAFIZA["temel_veriler"][sembol].get("fk", "-")
+                pddd_degeri = HAFIZA["temel_veriler"][sembol].get("pddd", "-")
+
+            # Artık MACD bilgisini de API'ye gönderiyoruz!
+            macd_durumu = "AL" if df['MACD'].iloc[-1] > df['MACD_Signal'].iloc[-1] else "SAT"
+
             return {
                 "fiyat": f"{guncel_fiyat:.2f}",
                 "rsi": f"{df['RSI'].iloc[-1]:.2f}",
                 "sma_50": f"{df['SMA_50'].iloc[-1]:.2f}",
-                "macd": "AL" if df['MACD'].iloc[-1] > df['MACD_Signal'].iloc[-1] else "SAT",
+                "macd": macd_durumu,
                 "adx": f"{df['ADX'].iloc[-1]:.2f}",
-                "fk": temel.get("fk", "-"),
-                "pddd": temel.get("pddd", "-"),
+                "fk": fk_degeri,
+                "pddd": pddd_degeri,
                 "portfoy_durumu": portfoy_notu
             }
-        except:
+        except Exception as e:
             time.sleep(1)
             
-    # Eğer internetten çekemezsek hafızadaki son fiyatı dön
     son_fiyat = HAFIZA["son_fiyatlar"].get(sembol, 0)
-    return {"fiyat": f"{son_fiyat:.2f}", "rsi": "N/A", "fk": "-", "pddd": "-", "portfoy_durumu": "YOK"}
+    return {"fiyat": f"{son_fiyat:.2f}", "rsi": "N/A", "macd": "N/A", "fk": "-", "pddd": "-", "portfoy_durumu": "YOK"}
     
-
-
 
 # ==========================================
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
