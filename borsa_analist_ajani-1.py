@@ -323,10 +323,12 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     # FOR döngüsü 4 boşluk içeride
     for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
+        haber_sonucu = hisse_haber_analizi_yap
+        
         if veri:
             anlik_tahmin_verisi[sembol] = veri 
-            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | RSI: {veri.get('rsi')} | MACD: {veri.get('macd')} | F/K: {veri.get('fk')} | PD/DD: {veri.get('pddd')}"
-    time.sleep(1)
+            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | Haberler: {haber_sonucu} | RSI: {veri.get('rsi')} | MACD: {veri.get('macd')} | F/K: {veri.get('fk')}"
+            time.sleep(1)
 
     tecrubeler_metni = "\n🧠 ÖĞRENİLEN DERSLER (SENSEİ KURALLARI):\n"
     if HAFIZA.get("ogrenilen_dersler"):
