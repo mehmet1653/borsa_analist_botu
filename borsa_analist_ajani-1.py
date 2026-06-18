@@ -325,8 +325,8 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
         veri = finansal_veri_topla(sembol)
         if veri:
             anlik_tahmin_verisi[sembol] = veri 
-            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | RSI: {veri.get('rsi')}"
-        time.sleep(1)
+            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | RSI: {veri.get('rsi')} | MACD: {veri.get('macd')} | F/K: {veri.get('fk')} | PD/DD: {veri.get('pddd')}"
+    time.sleep(1)
 
     tecrubeler_metni = "\n🧠 ÖĞRENİLEN DERSLER (SENSEİ KURALLARI):\n"
     if HAFIZA.get("ogrenilen_dersler"):
@@ -336,23 +336,24 @@ def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
         tecrubeler_metni += "- Henüz ders çıkarılmadı, ilk analizler yapılıyor.\n"
 
     # Prompt'u IF bloğunun dışına çıkardım ve daha net hale getirdim
+    
     prompt = f"""
     Sen rasyonel, geçmiş hatalarından ders çıkaran profesyonel bir finans yapay zekasısın.
     
     RAPOR TÜRÜ: {rapor_tipi}
-    GÜNCEL PİYASA VERİLERİ: {piyasa_ozeti}
+    GÜNCEL PİYASA VERİLERİ (Fiyat, RSI, MACD, F/K, PD/DD dahil): {piyasa_ozeti}
     {tecrubeler_metni}
     
     GÖREVİN:
-    Teknik verileri (Fiyat, RSI, MACD) ve temel verileri (F/K, PD/DD) birleştirerek yorumla.
-    Her hisse için tam olarak şu formatı kullan:
-    
+    Gelen verileri (Fiyat, RSI, MACD, F/K, PD/DD) analiz et. 
+    Veri eksikse (örn: 'fk' '-' ise) bunu belirt ama 'Mevcut Değil' diyerek analizi kısıtlama, elindeki diğer verilerle (RSI ve MACD) yorumunu yap.
+    Format:
     ### [HİSSE ADI]
     * GÜNCEL FİYAT: [Fiyat]
     * TEMEL RASYOLAR: F/K: [FK], PD/DD: [PD/DD]
-    * GEÇMİŞ ANALİZİM: [Önceki günlerden gelen analiz]
+    * MACD DURUMU: [MACD]
     * YENİ ÖNGÖRÜ: [OLUMLU/OLUMSUZ/TEMKİNLİ]
-    * Yorum: [Teknik ve temel verileri harmanlayan keskin analiz]
+    * Yorum: [Verileri harmanla]
     """
     
     try: 
