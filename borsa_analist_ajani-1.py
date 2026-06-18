@@ -316,32 +316,43 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
-    telegram_mesaj_gonder("🚀 Tüm liste tek seferde sentezleniyor (Kota dostu mod)...")
+    telegram_mesaj_gonder("🚀 Haberler, temel rasyolar ve teknik veriler sentezleniyor...")
     takip_listesi = HAFIZA["takip_listesi"]
     
-    # Tüm listeyi tek metinde topla
     toplu_metin = ""
     for s in takip_listesi:
         v = finansal_veri_topla(s)
         h = hisse_haber_kaziyici(s)
-        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, F/K:{v['fk']}. HABER: {h}"
+        # Sadece fiyat değil, rasyoları da metne ekliyoruz
+        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}. HABER: {h}"
     
-    # TEK İSTEKLE İŞİ BİTİR
+    # PROMPT: "Önümüzdeki hafta" tahminini zorunlu kıldık
     prompt = f"""
-    Sen bir borsa stratejistisin. Aşağıdaki tüm listeyi tek bir tabloda/listede analiz et.
+    Sen bir borsa stratejistisin. Aşağıdaki verileri analiz et ve bir rapor hazırla.
     VERİLER: {toplu_metin}
     
+    KURALLAR:
+    1. Her hisse için haber etkisini belirt.
+    2. F/K ve PD/DD değerlerini mutlaka yaz.
+    3. ÖNÜMÜZDEKİ HAFTA İÇİN: 'Yükseliş/Düşüş/Yatay' beklentini yaz (Eğitim için kritik).
+    
     Format:
-    ### HİSSE | KARAR | HABER ETKİSİ | TEKNİK (RSI/MACD/FK) | ÖNGÖRÜ
-    (Hepsini kısa, net maddelerle yaz, destan yazma!)
+
+| HİSSE | KARAR | TEKNİK (RSI/MACD) | TEMEL (FK/PDDD) | HABER ETKİSİ | HAFTALIK BEKLENTİ |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+
     """
     
     try:
         cevap = model.generate_content(prompt).text
+        # Bu cevabı tahmin günlüğüne kaydet (7 gün sonra eğitim için)
+        tarih_key = dt.datetime.utcnow().strftime('%Y-%m-%d')
+        HAFIZA["tahmin_gunlugu"][tarih_key] = {"ai_raporu_kesiti": cevap, "piyasa_durumu": toplu_metin}
+        hafizayi_kaydet()
+        
         telegram_mesaj_gonder(cevap)
     except Exception as e:
-        telegram_mesaj_gonder(f"⚠️ Hata: {e}")
-    
+        telegram_mesaj_gonder(f"⚠️ Hata: {e}")    
 def hisse_haber_kaziyici(sembol):
     try:
         ticker = yf.Ticker(sembol)
