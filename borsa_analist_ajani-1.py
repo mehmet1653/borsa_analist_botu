@@ -121,23 +121,23 @@ def tek_hisse_resmi_veri_cek(sembol):
     except:
         return False
 
-    
- def resmi_kaynaktan_temel_veri_guncelle():
+    def resmi_kaynaktan_temel_veri_guncelle():
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
     guncellenenler = []
     
-    # 4 boşluk içeride (Girinti burada başlıyor)
+    # FOR döngüsü 4 boşluk içeride
     for sembol in HAFIZA.get("takip_listesi", []):
         if tek_hisse_resmi_veri_cek(sembol):
             hisse_kodu = sembol.split(".")[0]
             guncellenenler.append(hisse_kodu)
         time.sleep(1)
             
-    # Bu da 4 boşluk içeride
+    # IF bloğu FOR ile aynı hizada (4 boşluk)
     if guncellenenler:
         hafizayi_kaydet()
         telegram_mesaj_gonder(f"🔄 *Resmi Temel Veri Güncellemesi Tamamlandı!*\nGece Kontrolü Yapılan Hisseler: {', '.join(guncellenenler)}\nYapay zeka rasyoları %100 güvenli finans havuzundan tazeledi.")
         
+    
 # ==========================================
 # ⚙️ TELEGRAM İLETİŞİM FONKSİYONLARI
 # ==========================================
@@ -310,16 +310,13 @@ def finansal_veri_topla(sembol):
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
     anlik_tahmin_verisi = {}
     bugun_str = dt.datetime.now().strftime('%Y-%m-%d')
-
     piyasa_ozeti = ""
     
+    # FOR döngüsü 4 boşluk içeride
     for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
         if veri:
-            # Buraya 'anlik_tahmin_verisi'ni dolduracak kodları ekliyoruz
             anlik_tahmin_verisi[sembol] = veri 
-            
-            # Raporu oluştururken artık bu sözlüğü kullanabilirsin
             piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | RSI: {veri.get('rsi')}"
         time.sleep(1)
 
