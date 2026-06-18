@@ -316,64 +316,47 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK DEĞERLENDİRME"):
-    anlik_tahmin_verisi = {}
-    piyasa_ozeti = ""
+    telegram_mesaj_gonder(f"⏳ *{rapor_tipi}* başlatılıyor... Veriler işleniyor.")
+    gundem = dunya_gundemini_cek()
+    takip_listesi = HAFIZA["takip_listesi"]
     
-    # 1. TETİKLE: Küresel gündemi kesin al
-    gundem = dunya_gundemini_cek() 
-    
-    for sembol in HAFIZA["takip_listesi"]:
-        veri = finansal_veri_topla(sembol)
-        # 2. TETİKLE: Haber analizini mutlaka çağır
-        haber_sonucu = hisse_haber_analizi_yap(sembol) 
+    # 3'erli gruplar halinde analiz et ki timeout yemesin
+    for i in range(0, len(takip_listesi), 3):
+        grup = takip_listesi[i:i+3]
+        piyasa_ozeti = ""
         
-        if veri:
-            anlik_tahmin_verisi[sembol] = veri 
-            piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | Haber: {haber_sonucu} | RSI: {veri.get('rsi')} | MACD: {veri.get('macd')} | FK: {veri.get('fk')}"
-    
-    # 3. ZORLA: Gemini'ye verileri rapora basması için kesin format ver
-    prompt = f"""
-    Sen rasyonel bir borsa uzmanısın. Sana verilen verileri kullanarak aşağıdaki raporu hazırla.
-    
-    KÜRESEL GÜNDEM: {gundem}
-    HİSSE ANALİZİ (Teknik + Haber): {piyasa_ozeti}
-    
-    GÖREVİN:
-    1. KÜRESEL GÜNDEM (Faiz, Enflasyon, Savaş) piyasayı nasıl etkiliyor? Özetle.
-    2. Aşağıdaki formatı kullanarak her hisseyi analiz et (Rakamları mutlaka raporda göster):
-    
-    ### [HİSSE ADI]
-    * GÜNCEL FİYAT: [Fiyat]
-    * TEKNİK: RSI: [RSI] | MACD: [MACD]
-    * HABER ANALİZİ: [Haberden çıkan sonuç]
-    * YORUM: [Teknik + Haber + Küresel Sentez]
-    """
-    
-    try:
-        ai_raporu = model.generate_content(prompt).text
-        telegram_mesaj_gonder(f"📊 **AKILLI ANALİZ RAPORU | {rapor_tipi}**\n\n{ai_raporu}")
-    except Exception as e:
-        telegram_mesaj_gonder(f"🤖 Sentez hatası: {e}")
+        for sembol in grup:
+            veri = finansal_veri_topla(sembol)
+            haber = hisse_haber_kaziyici(sembol)
+            if veri:
+                piyasa_ozeti += f"\n📌 {sembol} | Fiyat: {veri.get('fiyat')} | Haber: {haber} | RSI: {veri.get('rsi')} | MACD: {veri.get('macd')} | FK: {veri.get('fk')}"
         
+        prompt = f"""
+        Sen bir borsa uzmanısın. Şu hisseleri analiz et: {piyasa_ozeti}.
+        KÜRESEL GÜNDEM: {gundem}.
+        
+        Format (Rakamları mutlaka yaz):
+        ### [HİSSE ADI]
+        * GÜNCEL FİYAT: [Fiyat]
+        * TEKNİK: RSI: [RSI] | MACD: [MACD]
+        * HABER ANALİZİ: [Haber özeti]
+        * YORUM: [Teknik + Haber + Gündem sentezi]
+        """
+        try:
+            ai_raporu = model.generate_content(prompt).text
+            telegram_mesaj_gonder(f"📊 **BÖLÜM {int(i/3)+1}**\n\n{ai_raporu}")
+            time.sleep(2) # Telegram limitine takılmamak için kısa bekleme
+        except Exception as e:
+            telegram_mesaj_gonder(f"⚠️ Analiz hatası: {e}")
 def hisse_haber_kaziyici(sembol):
-    hisse_kodu = sembol.split(".")[0].lower()
-    # Investing.com'dan haber çekiyoruz
-    url = f"https://tr.investing.com/equities/{hisse_kodu}-news"
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Haber başlıklarını bul
-        haberler = [h.text.strip() for h in soup.select('.articleItem .title')[:3]]
-        if not haberler: return "Güncel haber bulunamadı."
-        return ". ".join(haberler)
+        ticker = yf.Ticker(sembol)
+        news = ticker.news
+        if not news: return "Haber akışı sakin."
+        return ". ".join([n['title'] for n in news[:2]])
     except:
-        return "Haber kaynağına ulaşılamadı."
-        
-        
+        return "Haber akışı alınamadı."
 
-# ... (Kodun geri kalanını [ajan_kendi_kendini_egit ve sonrası] aynen bırak)
 
 def ajan_kendi_kendini_egit():
     print("🧠 Yapay zeka öz-yansıtma ve eğitim modülü çalışıyor...")
