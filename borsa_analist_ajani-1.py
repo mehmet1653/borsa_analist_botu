@@ -282,8 +282,7 @@ def finansal_veri_topla(sembol):
                 portfoy_notu = f"Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f}, Kâr/Zarar: %{kar_zarar:.2f}"
 
             # Analiz verileri
-            temel = HAFIZA.get("temel_veriler", {}).get(sembol, {"fk": "-", "pddd": "-", "ihracat": "-", "ozsermaye_kar": "-"})
-            
+            temel = HAFIZA.get("temel_veriler", {}).get(sembol, VERI_KUTUSU.get(sembol, {"fk": "N/A", "pddd": "N/A"}))
             return {
                 "fiyat": f"{guncel_fiyat:.2f}",
                 "rsi": f"{df['RSI'].iloc[-1]:.2f}",
