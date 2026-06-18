@@ -123,17 +123,17 @@ def tek_hisse_resmi_veri_cek(sembol):
 
     
  def resmi_kaynaktan_temel_veri_guncelle():
-        
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
     guncellenenler = []
     
-    # Doğru girintileme burada başlıyor
+    # 4 boşluk içeride (Girinti burada başlıyor)
     for sembol in HAFIZA.get("takip_listesi", []):
         if tek_hisse_resmi_veri_cek(sembol):
             hisse_kodu = sembol.split(".")[0]
             guncellenenler.append(hisse_kodu)
         time.sleep(1)
             
+    # Bu da 4 boşluk içeride
     if guncellenenler:
         hafizayi_kaydet()
         telegram_mesaj_gonder(f"🔄 *Resmi Temel Veri Güncellemesi Tamamlandı!*\nGece Kontrolü Yapılan Hisseler: {', '.join(guncellenenler)}\nYapay zeka rasyoları %100 güvenli finans havuzundan tazeledi.")
