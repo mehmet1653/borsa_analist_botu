@@ -316,55 +316,43 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
-    telegram_mesaj_gonder("🚀 Haberler, temel rasyolar ve teknik veriler sentezleniyor...")
-    takip_listesi = HAFIZA["takip_listesi"]
+    telegram_mesaj_gonder("🌍 Küresel piyasalar taranıyor ve hisseler sentezleniyor...")
     
+    # 1. MAKRO HABERİ ÇEK (Sadece 1 kota harcar)
+    genel_haber = dunya_gundemini_cek()
+    
+    takip_listesi = HAFIZA["takip_listesi"]
     toplu_metin = ""
+    
+    # 2. Hisseleri döngüye al
     for s in takip_listesi:
         v = finansal_veri_topla(s)
-        h = hisse_haber_kaziyici(s)
-        # Sadece fiyat değil, rasyoları da metne ekliyoruz
-        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}. HABER: {h}"
+        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
     
-    # PROMPT: "Önümüzdeki hafta" tahminini zorunlu kıldık
+    # 3. ANALİZİ YAP (Küresel haberi prompt'un içine gömdük)
     prompt = f"""
-    Sen bir borsa stratejistisin. Aşağıdaki verileri analiz et ve bir rapor hazırla.
+    Sen bir Makro-Stratejistsin. Güncel Küresel Gündem şudur:
+    {genel_haber}
+    
+    Görev: Aşağıdaki hisseleri, bu küresel gündemin (Savaş, Petrol, Enflasyon vb.) etkisini göz önüne alarak analiz et.
     VERİLER: {toplu_metin}
     
-    KURALLAR:
-    1. Her hisse için haber etkisini belirt.
-    2. F/K ve PD/DD değerlerini mutlaka yaz.
-    3. ÖNÜMÜZDEKİ HAFTA İÇİN: 'Yükseliş/Düşüş/Yatay' beklentini yaz (Eğitim için kritik).
-    
-    Format:
+    FORMAT (Tablo):
 
-| HİSSE | KARAR | TEKNİK (RSI/MACD) | TEMEL (FK/PDDD) | HABER ETKİSİ | HAFTALIK BEKLENTİ |
-| :--- | :--- | :--- | :--- | :--- | :--- |
+| HİSSE | FİYAT | KARAR | TEKNİK | TEMEL | KÜRESEL ETKİ | HAFTALIK BEKLENTİ |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 
     """
     
     try:
         cevap = model.generate_content(prompt).text
-        # Bu cevabı tahmin günlüğüne kaydet (7 gün sonra eğitim için)
+        # Kayıt kısmı aynı...
         tarih_key = dt.datetime.utcnow().strftime('%Y-%m-%d')
         HAFIZA["tahmin_gunlugu"][tarih_key] = {"ai_raporu_kesiti": cevap, "piyasa_durumu": toplu_metin}
         hafizayi_kaydet()
-        
         telegram_mesaj_gonder(cevap)
     except Exception as e:
-        telegram_mesaj_gonder(f"⚠️ Hata: {e}")    
-def hisse_haber_kaziyici(sembol):
-    try:
-        ticker = yf.Ticker(sembol)
-        news = ticker.news
-        if not news: return "Haber yok (Sakin)"
-        # Haber başlıklarını birleştir ve önemli kelimeleri öne çıkar
-        ozet = " | ".join([n['title'] for n in news[:3]])
-        return ozet
-    except:
-        return "Haber akışı hata verdi."
-        
-
+        telegram_mesaj_gonder(f"⚠️ Hata: {e}")
 def ajan_kendi_kendini_egit():
     print("🧠 Yapay zeka öz-yansıtma ve eğitim modülü çalışıyor...")
     su_an_utc = dt.datetime.utcnow()
@@ -409,16 +397,7 @@ def ajan_kendi_kendini_egit():
     except Exception as e:
         print(f"Eğitim döngüsü hatası: {e}")
         
-def hisse_haber_kaziyici(sembol):
-    try:
-        ticker = yf.Ticker(sembol)
-        news = ticker.news
-        if not news: return "Haber akışı sakin."
-        return ". ".join([n['title'] for n in news[:2]])
-    except:
-        return "Haber akışı alınamadı."
-        
-        
+     
 # ==========================================
 # 🔄 ANA DÖNGÜ (7/24 DİNLEME VE RAPORLAMA)
 # ==========================================
