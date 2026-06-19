@@ -253,7 +253,8 @@ def finansal_veri_topla(sembol):
     for deneme in range(3):
         try:
             df = yf.download(sembol, period="1y", progress=False)
-    if df.empty:
+    if df.empty: except Exception as e:
+    print(f"Hata oluştu: {e}")
         # Alternatif deneme: Belki Yahoo'da farklı kayıtlıdır (Örn: INTC vs INTC.US)
         df = yf.download(f"{sembol}.US", period="1y", progress=False)
     
