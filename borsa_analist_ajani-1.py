@@ -253,13 +253,14 @@ def finansal_veri_topla(sembol):
     for deneme in range(3):
         try:
             df = yf.download(sembol, period="1y", progress=False)
-    if df.empty: except Exception as e:
-    print(f"Hata oluştu: {e}")
+    
+    # EĞER HİSSE İLK KEZ EKLENDİYSE VE BOŞ DÖNÜYORSA:
+    if df.empty:
         # Alternatif deneme: Belki Yahoo'da farklı kayıtlıdır (Örn: INTC vs INTC.US)
         df = yf.download(f"{sembol}.US", period="1y", progress=False)
     
-          if df.empty: return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A", "portfoy_durumu": "YOK"}
-        
+    if df.empty: return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A", "portfoy_durumu": "YOK"}
+    
         time.sleep(1)
                 continue
                 
