@@ -84,42 +84,39 @@ hafizayi_yukle()
 # ==========================================
 
 def tek_hisse_resmi_veri_cek(sembol):
-    ticker = yf.Ticker(sembol)
-    info = ticker.info
-    fk = info.get("trailingPE")
-    
-    # Eğer Yahoo PE vermezse, VERI_KUTUSU'ndakini kullan
-    if not fk and sembol in VERI_KUTUSU:
-        fk = VERI_KUTUSU[sembol]["fk"]
-        pddd = VERI_KUTUSU[sembol]["pddd"]
-    else:
-        pddd = info.get("priceToBook")
-    
-    # Şimdi HAFIZA'ya yaz...
-        
-        HAFIZA["temel_veriler"][sembol] = {
-            "fk": data["fk"], "pddd": data["pddd"],
-            "ihracat": "-", "ozsermaye_kar": "-"
-        }
-        return True
-    
-    # 2. Öncelik: İnternetten çek ve hafızaya kaydet
-    ticker = yf.Ticker(sembol)
     try:
+        # Ticker bilgisini çek
+        ticker = yf.Ticker(sembol)
         info = ticker.info
+        
+        # 1. Öncelik: Yahoo'dan gelen veri
         fk = info.get("trailingPE")
         pddd = info.get("priceToBook")
         
+        # 2. Öncelik: Eğer Yahoo veri vermezse ve manuel kutuda varsa onu kullan
+        if (not fk or not pddd) and sembol in VERI_KUTUSU:
+            fk = VERI_KUTUSU[sembol]["fk"]
+            pddd = VERI_KUTUSU[sembol]["pddd"]
+        
+        # Veri geldiyse hafızaya yaz (Yabancı veya Yerli fark etmeksizin)
         if fk and pddd:
             HAFIZA["temel_veriler"][sembol] = {
                 "fk": f"{float(fk):.2f}", 
                 "pddd": f"{float(pddd):.2f}",
                 "ihracat": "-", "ozsermaye_kar": "-"
             }
-            hafizayi_kaydet() # Artık hafızaya kalıcı yazıyor!
+            # Hafızaya kalıcı olarak kaydet
+            hafizayi_kaydet()
             return True
-    except:
+        else:
+            # Veri yine de gelmediyse N/A olarak işaretle
+            HAFIZA["temel_veriler"][sembol] = {"fk": "N/A", "pddd": "N/A"}
+            return False
+            
+    except Exception as e:
+        print(f"Hisse verisi çekilirken hata oluştu ({sembol}): {e}")
         return False
+        
 
 def resmi_kaynaktan_temel_veri_guncelle():
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
