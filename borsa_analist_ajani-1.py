@@ -354,25 +354,15 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     except Exception as e:
         telegram_mesaj_gonder(f"⚠️ Hata: {e}")
 def ajan_kendi_kendini_egit():
-    print("🧠 Yapay zeka öz-yansıtma ve eğitim modülü çalışıyor...")
-    su_an_utc = dt.datetime.utcnow()
-    tr_saati = su_an_utc + dt.timedelta(hours=3)
-    
-    # 7 gün önceki tarihi bul
-    gecmis_tarih = (tr_saati - timedelta(days=7)).strftime('%Y-%m-%d')
-    
-    if gecmis_tarih not in HAFIZA["tahmin_gunlugu"]:
-        print("ℹ️ Geriye dönük değerlendirme için yeterli veri henüz yok.")
-        return
-
+    # ... (üst kısımlar aynı)
     gecmis_data = HAFIZA["tahmin_gunlugu"][gecmis_tarih]
     bugunku_fiyatlar = {}
     
-    for sembol in gecmis_data["piyasa_durumu"].keys():
+    # DÜZELTME: Metni değil, takip listesini gez
+    for sembol in HAFIZA["takip_listesi"]:
         veri = finansal_veri_topla(sembol)
-        if veri:
-            bugunku_fiyatlar[sembol] = veri["fiyat"]
-            
+        bugunku_fiyatlar[sembol] = veri["fiyat"]
+        
     prompt = f"""
     Sen kendi kararlarını denetleyen ve kendi kendini eğiten finansal bir yapay zekasın.
     7 Gün Önceki Tahmin Verilerin ve Fiyatların: {json.dumps(gecmis_data['piyasa_durumu'])}
