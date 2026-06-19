@@ -127,7 +127,7 @@ def resmi_kaynaktan_temel_veri_guncelle():
         if tek_hisse_resmi_veri_cek(sembol):
             hisse_kodu = sembol.split(".")[0]
             guncellenenler.append(hisse_kodu)
-        time.sleep(1)
+        time.sleep(2)
             
     # IF bloğu FOR ile aynı hizada (4 boşluk)
     if guncellenenler:
@@ -431,5 +431,5 @@ if __name__ == "__main__":
             print(f"❌ Ana döngü hatası: {e}")
             time.sleep(10)
         
-        time.sleep(1)
+        time.sleep(2)
         
