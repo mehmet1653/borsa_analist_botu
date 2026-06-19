@@ -253,8 +253,13 @@ def finansal_veri_topla(sembol):
     for deneme in range(3):
         try:
             df = yf.download(sembol, period="1y", progress=False)
-            if df.empty or 'Close' not in df.columns:
-                time.sleep(1)
+          if df.empty:
+        # Alternatif deneme: Belki Yahoo'da farklı kayıtlıdır (Örn: INTC vs INTC.US)
+        df = yf.download(f"{sembol}.US", period="1y", progress=False)
+    
+          if df.empty: return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A", "portfoy_durumu": "YOK"}
+        
+        time.sleep(1)
                 continue
                 
             # Veri düzenleme
@@ -336,7 +341,9 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     
     Görev: Aşağıdaki hisseleri, bu küresel gündemin (Savaş, Petrol, Enflasyon vb.) etkisini göz önüne alarak analiz et.
     VERİLER: {toplu_metin}
-    
+    DİKKAT: Eğer bazı hisselerin F/K veya PD/DD verisi 'N/A' ise, o hisseyi analiz dışı bırakma. 
+Teknik verilerini (RSI, MACD) ve küresel etkisini yorumla, eksik olan temel veriler için "Veri Bekleniyor" notunu düş.
+
     FORMAT (Tablo):
 
 | HİSSE | FİYAT | KARAR | TEKNİK | TEMEL | KÜRESEL ETKİ | HAFTALIK BEKLENTİ |
