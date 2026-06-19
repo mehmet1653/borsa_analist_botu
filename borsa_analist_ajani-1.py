@@ -31,7 +31,7 @@ PORTFOY_YEDEK = {
     "KRDMB.IS": {"lot": 13, "maliyet": 96.35}   
 }
 TAKIP_YEDEK = ["THYAO.IS", "TUPRS.IS", "USDTRY=X", "GC=F", "SASA.IS", "KRDMB.IS", "ASTOR.IS", "KCHOL.IS", "MRGYO.IS", "BTC-USD"]
-
+TEMEL_VERILER_YEDEK = {s: {"fk": "0.00", "pddd": "0.00"} for s in TAKIP_YEDEK}
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
