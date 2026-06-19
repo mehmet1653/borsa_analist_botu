@@ -253,17 +253,14 @@ def finansal_veri_topla(sembol):
     for deneme in range(3):
         try:
             df = yf.download(sembol, period="1y", progress=False)
-    
-    # EĞER HİSSE İLK KEZ EKLENDİYSE VE BOŞ DÖNÜYORSA:
-    if df.empty:
-        # Alternatif deneme: Belki Yahoo'da farklı kayıtlıdır (Örn: INTC vs INTC.US)
-        df = yf.download(f"{sembol}.US", period="1y", progress=False)
-    
-    if df.empty: return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A", "portfoy_durumu": "YOK"}
-    
-        time.sleep(1)
-                continue
-                
+            
+            # 🛑 HATA BURADAYDI: Bu if bloğunu try'ın içine aldım
+            if df.empty:
+                df = yf.download(f"{sembol}.US", period="1y", progress=False)
+            
+            if df.empty: 
+                return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A", "portfoy_durumu": "YOK"}
+            
             # Veri düzenleme
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.droplevel(1)
@@ -286,20 +283,16 @@ def finansal_veri_topla(sembol):
                 kar_zarar = ((guncel_fiyat - p['maliyet']) / p['maliyet']) * 100
                 portfoy_notu = f"Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f}, Kâr/Zarar: %{kar_zarar:.2f}"
 
-            # 🛑 İŞTE KRİTİK DEĞİŞİKLİK BURADA: VERI_KUTUSU'NU DOĞRUDAN KULLAN 🛑
             fk_degeri = "-"
             pddd_degeri = "-"
             
-            # 1. Önce senin yazdığın manuel VERI_KUTUSU'na baksın
             if sembol in VERI_KUTUSU:
                 fk_degeri = VERI_KUTUSU[sembol]["fk"]
                 pddd_degeri = VERI_KUTUSU[sembol]["pddd"]
-            # 2. Eğer VERI_KUTUSU'nda yoksa HAFIZA'ya (Supabase'e) baksın
             elif sembol in HAFIZA.get("temel_veriler", {}):
                 fk_degeri = HAFIZA["temel_veriler"][sembol].get("fk", "-")
                 pddd_degeri = HAFIZA["temel_veriler"][sembol].get("pddd", "-")
 
-            # Artık MACD bilgisini de API'ye gönderiyoruz!
             macd_durumu = "AL" if df['MACD'].iloc[-1] > df['MACD_Signal'].iloc[-1] else "SAT"
 
             return {
@@ -313,6 +306,7 @@ def finansal_veri_topla(sembol):
                 "portfoy_durumu": portfoy_notu
             }
         except Exception as e:
+            print(f"Veri çekme hatası ({sembol}): {e}")
             time.sleep(1)
             
     son_fiyat = HAFIZA["son_fiyatlar"].get(sembol, 0)
