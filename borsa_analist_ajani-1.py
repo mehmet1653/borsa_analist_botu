@@ -293,11 +293,9 @@ def finansal_veri_topla(sembol):
             macd_durumu = "AL" if df['MACD'].iloc[-1] > df['MACD_Signal'].iloc[-1] else "SAT"
 
             return {
-                "fiyat": f"{guncel_fiyat:.2f}",
-                "rsi": f"{df['RSI'].iloc[-1]:.2f}",
-                "sma_50": f"{df['SMA_50'].iloc[-1]:.2f}",
+                "fiyat": f"{guncel_fiyat:.2f}" if guncel_fiyat > 0 else "Eksik",
+                "rsi": f"{df['RSI'].iloc[-1]:.2f}" if not pd.isna(df['RSI'].iloc[-1]) else "Eksik",
                 "macd": macd_durumu,
-                "adx": f"{df['ADX'].iloc[-1]:.2f}",
                 "fk": fk_degeri,
                 "pddd": pddd_degeri,
                 "portfoy_durumu": portfoy_notu
