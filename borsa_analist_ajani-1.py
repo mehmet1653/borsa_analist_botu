@@ -328,19 +328,19 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
         toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
     
     # 3. ANALİZİ YAP (Küresel haberi prompt'un içine gömdük)
-    prompt = f"""
-    Sen bir Makro-Stratejistsin. Güncel Küresel Gündem şudur:
-    {genel_haber}
+        prompt = f"""
+    Sen bir Finansal Stratejistsin. Görevin, aşağıdaki verileri analiz edip SADECE aşağıdaki tablo formatında çıktı vermektir.
     
-    Görev: Aşağıdaki hisseleri, bu küresel gündemin (Savaş, Petrol, Enflasyon vb.) etkisini göz önüne alarak analiz et.
+    KURALLAR:
+    1. Eğer MACD 'AL' ise KARAR 'POZİTİF', 'SAT' ise 'NEGATİF' yaz. İkisini birden yazma.
+    2. HAFTALIK YORUM kısmında net ol: "Yükselecek", "Düşecek" veya "Yatay Seyredecek" şeklinde bir yön belirt.
+    3. Tablo dışı uzun giriş metinleri yazma, doğrudan tabloya geç.
+    4. Teknik ve Temel veriler eksikse "Veri Yok" yaz, analiz dışı bırakma.
     VERİLER: {toplu_metin}
-    DİKKAT: Eğer bazı hisselerin F/K veya PD/DD verisi 'N/A' ise, o hisseyi analiz dışı bırakma. 
-Teknik verilerini (RSI, MACD) ve küresel etkisini yorumla, eksik olan temel veriler için "Veri Bekleniyor" notunu düş.
+    FORMAT:
 
-    FORMAT (Tablo):
-
-| HİSSE | FİYAT | KARAR | TEKNİK | TEMEL | KÜRESEL ETKİ | HAFTALIK BEKLENTİ |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| HİSSE | KARAR | TEKNİK YÖN | HAFTALIK YORUM |
+| :--- | :--- | :--- | :--- |
 
     """
     
