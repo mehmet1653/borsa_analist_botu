@@ -16,11 +16,11 @@ from supabase import create_client, Client
 # 🛑 MANUEL GÜNCEL VERİ İSTASYONU
 # ==========================================
 VERI_KUTUSU = {
-    "THYAO.IS": {"fk": "4.20", "pddd": "0.95"},
-    "TUPRS.IS": {"fk": "7.50", "pddd": "2.80"},
+    "THYAO.IS": {"fk": "3.47", "pddd": "0.47"},
+    "TUPRS.IS": {"fk": "11.99", "pddd": "1.22"},
     "SASA.IS":  {"fk": "20.10", "pddd": "3.80"},
     "ASTOR.IS": {"fk": "26.40", "pddd": "5.90"},
-    "KCHOL.IS": {"fk": "4.90", "pddd": "1.30"},
+    "KCHOL.IS": {"fk": "18.63", "pddd": "0.69"},
     "MRGYO.IS": {"fk": "12.50", "pddd": "0.75"},
     "KRDMB.IS": {"fk": "11.80", "pddd": "1.55"}
 }
