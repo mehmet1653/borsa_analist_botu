@@ -327,22 +327,18 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     
     # 3. ANALİZİ YAP (Küresel haberi prompt'un içine gömdük)
         prompt = f"""
-Sen bir Makro-Stratejistsin. Görevin, aşağıda sağlanan teknik verileri ve küresel haberleri birleştirerek yatırımcıya net bir yol haritası sunmak.
-KÜRESEL GÜNDEM:
-{genel_haber}
-HİSSE VERİLERİ (Fiyat, RSI, MACD, FK, PD/DD):
-{toplu_metin}
-ANALİZ FORMATI:
-
-| HİSSE | FİYAT | RSI | MACD | FK/PDDD | KARAR | HAFTALIK YORUM |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-
-KURALLAR:
-1. RSI > 70 ise "Aşırı Alım", RSI < 30 ise "Aşırı Satım" olarak not et.
-2. MACD ve RSI uyumuna göre "POZİTİF" veya "NEGATİF" karar ver.
-3. Haftalık Yorum: "Yükselecek", "Düşecek" veya "Yatay" şeklinde net bir yön ver ve nedenini (Haber/Teknik) 1 cümleyle açıkla.
-4. Veri gelmediyse "Eksik" yaz ama analizi bırakma.
-"""
+    Sen bir Makro-Stratejistsin. Görevin, aşağıda sağlanan teknik verileri ve küresel haberleri birleştirerek yatırımcıya net bir yol haritası sunmak.
+    KÜRESEL GÜNDEM: {genel_haber}
+    HİSSE VERİLERİ: {toplu_metin}
+    
+    ANALİZ FORMATI (Tablo):
+    | HİSSE | FİYAT | RSI | MACD | FK/PDDD | KARAR | HAFTALIK YORUM |
+    | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+    
+    KURALLAR:
+    - Verilerde "Eksik" yazıyorsa, temel analiz kısmını teknik veriye göre tahmin et.
+    - Haftalık Yorum: "Yükselecek", "Düşecek" veya "Yatay" şeklinde SADECE 1 kelime ile yön belirt.
+    """
     
     try:
         cevap = model.generate_content(prompt).text
