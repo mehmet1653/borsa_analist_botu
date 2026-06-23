@@ -312,41 +312,33 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
-    telegram_mesaj_gonder("🌍 Küresel piyasalar taranıyor ve hisseler sentezleniyor...")
-    
-    # 1. MAKRO HABERİ ÇEK (Sadece 1 kota harcar)
+    telegram_mesaj_gonder("🌍 Küresel piyasalar taranıyor...")
     genel_haber = dunya_gundemini_cek()
-    
     takip_listesi = HAFIZA["takip_listesi"]
     toplu_metin = ""
     
-    # 2. Hisseleri döngüye al
     for s in takip_listesi:
         v = finansal_veri_topla(s)
         toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
     
-    # 3. ANALİZİ YAP (Küresel haberi prompt'un içine gömdük)
-            prompt = f"""
-    Sen bir Makro-Stratejistsin. Senin görevin sadece analiz yapmaktır, şablon veya örnek sunma.
-    
+    # PROMPT ARTIK SOLA YASLI VE DÜZGÜN
+    prompt = f"""Sen bir Makro-Stratejistsin.
     KÜRESEL GÜNDEM: {genel_haber}
     VERİLER: {toplu_metin}
     
-    ANALİZ TABLOSU:
+    GÖREV: Aşağıdaki tabloyu doldur.
 
 | **HİSSE** | **FİYAT** | **KARAR** | **YORUM VE GEREKÇE** |
 | :--- | :--- | :--- | :--- |
 
     KURALLAR:
-    1. Her hisse adını, fiyatını ve kararını mutlaka **KALIN (Bold)** yaz.
-    2. "YORUM VE GEREKÇE" kısmında; önce yönü (Yükselecek/Düşecek/Yatay) belirt, sonra "ÇÜNKÜ" diyerek teknik ve temel gerekçeni tek cümlede yaz.
-    3. Giriş metni yazma, doğrudan tablo ile başla.
-    4. Eğer bir hissenin verisi "Eksik" gelmişse, onu teknik indikatörlere değil, sadece temel beklentiye göre yorumla.
-    """
+    - HİSSE, FİYAT ve KARAR kısımlarını **KALIN** yaz.
+    - YORUM VE GEREKÇE: Önce YÖN (Yükselecek/Düşecek/Yatay), sonra "ÇÜNKÜ" ile tek cümlelik gerekçe.
+    - Başka açıklama yapma, sadece tabloyu gönder."""
     
     try:
         cevap = model.generate_content(prompt).text
-        # Kayıt kısmı aynı...
+        # Kayıt kısmı
         tarih_key = dt.datetime.utcnow().strftime('%Y-%m-%d')
         HAFIZA["tahmin_gunlugu"][tarih_key] = {"ai_raporu_kesiti": cevap, "piyasa_durumu": toplu_metin}
         hafizayi_kaydet()
@@ -354,40 +346,55 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     except Exception as e:
         telegram_mesaj_gonder(f"⚠️ Hata: {e}")
 def ajan_kendi_kendini_egit():
-    # ... (üst kısımlar aynı)
-    gecmis_data = HAFIZA["tahmin_gunlugu"][gecmis_tarih]
+    # 1. Tarih hesaplamalarını netleştir
+    su_an_utc = dt.datetime.utcnow()
+    tr_saati = su_an_utc + dt.timedelta(hours=3)
+    yedi_gun_once = (tr_saati - dt.timedelta(days=7)).strftime('%Y-%m-%d')
+    
+    # 2. Geçmiş verinin varlığını kontrol et
+    if yedi_gun_once not in HAFIZA.get("tahmin_gunlugu", {}):
+        print(f"⚠️ Eğitim için {yedi_gun_once} tarihli kayıt bulunamadı.")
+        return
+
+    gecmis_data = HAFIZA["tahmin_gunlugu"][yedi_gun_once]
     bugunku_fiyatlar = {}
     
-    # DÜZELTME: Metni değil, takip listesini gez
-    for sembol in HAFIZA["takip_listesi"]:
+    # 3. Güncel piyasa verisini çek
+    for sembol in HAFIZA.get("takip_listesi", []):
         veri = finansal_veri_topla(sembol)
         bugunku_fiyatlar[sembol] = veri["fiyat"]
         
+    # 4. Analiz için prompt'u hazırla
     prompt = f"""
-    Sen kendi kararlarını denetleyen ve kendi kendini eğiten finansal bir yapay zekasın.
-    7 Gün Önceki Tahmin Verilerin ve Fiyatların: {json.dumps(gecmis_data['piyasa_durumu'])}
-    Bugün Gerçekleşen Güncel Fiyatlar: {json.dumps(bugunku_fiyatlar)}
-    7 Gün Önce Yaptığın Yorum Özeti: {gecmis_data['ai_raporu_kesiti']}
+    Sen kendi kararlarını denetleyen bir finansal stratejistsin.
+    Geçmiş tahminlerini şu anki piyasa gerçekleriyle karşılaştır.
     
-    Görevin: Geçmiş tahminlerini gerçek piyasa sonuçlarıyla acımasızca karşılaştır. 
-    Özellikle yönünü (Yükseliş/Düşüş/Yatay) yanlış bildiğin enstrümanları tespit et. 
-    Hangi indikatörü (RSI, MACD, MA50) yanlış yorumladığını veya neyi ıskaladığını çöz.
-    Bir sonraki analizlerinde aynı hatayı yapmamak için çıkardığın dersi 'ÖĞRENİLEN DERS: ...' şeklinde tek bir kural cümlesi olarak yaz.
+    - 7 Gün Önceki Piyasa Durumu: {gecmis_data.get('piyasa_durumu', 'Veri yok')}
+    - 7 Gün Önceki Yorumun: {gecmis_data.get('ai_raporu_kesiti', 'Veri yok')}
+    - Bugünün Gerçek Fiyatları: {json.dumps(bugunku_fiyatlar)}
+    
+    Görevin:
+    1. Yönünü (Yükselecek/Düşecek) yanlış bildiğin hisseleri tespit et.
+    2. Neden yanıldığını bul (İndikatörler mi hatalıydı, yoksa küresel haberler mi?)
+    3. 'ÖĞRENİLEN DERS: ...' şeklinde tek bir kural cümlesi yaz.
     """
     
     try:
-        ders = model.generate_content(prompt).text.strip()
+        # 5. Gemini'dan dersi al
+        response = model.generate_content(prompt)
+        ders = response.text.strip()
+        
+        # 6. Hafızaya kaydet
         HAFIZA["ogrenilen_dersler"].append({
             "tarih": tr_saati.strftime('%Y-%m-%d %H:%M'),
             "ders": ders
         })
         hafizayi_kaydet()
         
-        telegram_mesaj_gonder(f"🧠 **AJAN GERİ BİLDİRİM VE ÖZ-EĞİTİM RAPORU** 🧠\n\nGeçmiş tahminlerimi denetledim ve şu stratejik kuralı hafızama kazıdım:\n\n`{ders}`\n\n🤖 *Sistem Durumu:* Ajan hatalarından ders çıkararak bir basamak daha akıllandı.")
+        telegram_mesaj_gonder(f"🧠 **AJAN ÖZ-EĞİTİM RAPORU** 🧠\n\n{ders}")
     except Exception as e:
         print(f"Eğitim döngüsü hatası: {e}")
         
-     
 # ==========================================
 # 🔄 ANA DÖNGÜ (7/24 DİNLEME VE RAPORLAMA)
 # ==========================================
