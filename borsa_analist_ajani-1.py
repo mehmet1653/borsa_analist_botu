@@ -444,6 +444,9 @@ while True:
             print(f"❌ Ana döngü hatası: {e}")
             time.sleep(10)
         
-        time.sleep(2) # CPU'yu yormamak için kısa bekleme
+        time.sleep(2)
+
+
+
         
         
