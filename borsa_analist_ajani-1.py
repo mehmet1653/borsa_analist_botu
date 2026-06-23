@@ -414,29 +414,37 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Sunucu hatası: {e}")
 
-    while True:
+        while True:
         try:
             telegram_komutlari_dinle()
             
             su_an_utc = dt.datetime.utcnow()
             tr_saati = su_an_utc + dt.timedelta(hours=3)
             saat_dakika = tr_saati.strftime("%H:%M")
-            saniye = tr_saati.strftime("%S")
+            saniye = int(tr_saati.strftime("%S")) # Saniyeyi sayıya çevirdik
             
-            if saniye in ["00", "01", "02"]:
+            # 15 saniyelik bir "fırsat penceresi" açtık
+            if saniye < 15:
                 if saat_dakika == "11:00":
+                    telegram_mesaj_gonder("☀️ Sabah bülteni hazırlanıyor...")
                     ajani_calistir(rapor_tipi="SABAH AÇILIŞ VE PORTFÖY RİSK KONTROLÜ")
-                    time.sleep(5)
+                    time.sleep(65) # 1 dakika uyu ki döngü aynı dakika içinde tekrar tetiklemesin
+                
                 elif saat_dakika == "18:30":
+                    telegram_mesaj_gonder("🌙 Akşam bülteni hazırlanıyor...")
                     ajani_calistir(rapor_tipi="AKŞAM KAPANIŞ VE MALİYET DEĞERLENDİRMESİ")
-                    time.sleep(5)
+                    time.sleep(65)
+                
                 elif saat_dakika == "23:30":
+                    telegram_mesaj_gonder("📉 Gece güncellemesi ve öz-eğitim başlatılıyor...")
                     resmi_kaynaktan_temel_veri_guncelle()
                     ajan_kendi_kendini_egit()
-                    time.sleep(5)
+                    time.sleep(65)
+                    
         except Exception as e:
             print(f"❌ Ana döngü hatası: {e}")
             time.sleep(10)
         
-        time.sleep(2)
+        time.sleep(2) # CPU'yu yormamak için kısa bekleme
+        
         
