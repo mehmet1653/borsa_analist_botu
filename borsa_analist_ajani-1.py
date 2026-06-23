@@ -414,8 +414,8 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Sunucu hatası: {e}")
 
-        while True:
-            try:
+while True:
+    try:
             telegram_komutlari_dinle()
             
             su_an_utc = dt.datetime.utcnow()
