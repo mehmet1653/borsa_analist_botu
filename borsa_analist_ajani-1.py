@@ -444,7 +444,7 @@ while True:
             print(f"❌ Ana döngü hatası: {e}")
             time.sleep(10)
         
-        time.sleep(2)
+    time.sleep(2)
 
 
 
