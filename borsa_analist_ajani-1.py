@@ -326,18 +326,22 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
         toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
     
     # 3. ANALİZİ YAP (Küresel haberi prompt'un içine gömdük)
-        prompt = f"""
-    Sen bir Makro-Stratejistsin. Görevin, aşağıda sağlanan teknik verileri ve küresel haberleri birleştirerek yatırımcıya net bir yol haritası sunmak.
+            prompt = f"""
+    Sen bir Makro-Stratejistsin. Senin görevin sadece analiz yapmaktır, şablon veya örnek sunma.
+    
     KÜRESEL GÜNDEM: {genel_haber}
-    HİSSE VERİLERİ: {toplu_metin}
+    VERİLER: {toplu_metin}
     
-    ANALİZ FORMATI (Tablo):
-    | HİSSE | FİYAT | RSI | MACD | FK/PDDD | KARAR | HAFTALIK YORUM |
-    | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-    
+    ANALİZ TABLOSU:
+
+| **HİSSE** | **FİYAT** | **KARAR** | **YORUM VE GEREKÇE** |
+| :--- | :--- | :--- | :--- |
+
     KURALLAR:
-    - Verilerde "Eksik" yazıyorsa, temel analiz kısmını teknik veriye göre tahmin et.
-    - Haftalık Yorum: "Yükselecek", "Düşecek" veya "Yatay" şeklinde SADECE 1 kelime ile yön belirt.
+    1. Her hisse adını, fiyatını ve kararını mutlaka **KALIN (Bold)** yaz.
+    2. "YORUM VE GEREKÇE" kısmında; önce yönü (Yükselecek/Düşecek/Yatay) belirt, sonra "ÇÜNKÜ" diyerek teknik ve temel gerekçeni tek cümlede yaz.
+    3. Giriş metni yazma, doğrudan tablo ile başla.
+    4. Eğer bir hissenin verisi "Eksik" gelmişse, onu teknik indikatörlere değil, sadece temel beklentiye göre yorumla.
     """
     
     try:
