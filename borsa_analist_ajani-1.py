@@ -440,8 +440,7 @@ while True:
                     resmi_kaynaktan_temel_veri_guncelle()
                     ajan_kendi_kendini_egit()
                     time.sleep(65)
-                    
-        except Exception as e:
+    except Exception as e:
             print(f"❌ Ana döngü hatası: {e}")
             time.sleep(10)
         
