@@ -416,35 +416,44 @@ if __name__ == "__main__":
 
 while True:
     try:
-            telegram_komutlari_dinle()
-            
-            su_an_utc = dt.datetime.utcnow()
-            tr_saati = su_an_utc + dt.timedelta(hours=3)
-            saat_dakika = tr_saati.strftime("%H:%M")
-            saniye = int(tr_saati.strftime("%S")) # Saniyeyi sayıya çevirdik
-            
-            # 15 saniyelik bir "fırsat penceresi" açtık
-            if saniye < 15:
+        # 1. Komutları dinle
+        telegram_komutlari_dinle()
+        
+        # 2. Zamanı hesapla
+        su_an_utc = dt.datetime.utcnow()
+        tr_saati = su_an_utc + dt.timedelta(hours=3)
+        saat_dakika = tr_saati.strftime("%H:%M")
+        saniye = int(tr_saati.strftime("%S"))
+        
+        # 3. Tetikleme mekanizması (Sadece saniye 0-14 arası çalışır)
+        if saniye < 15:
+            # Buradaki if-elif yapısı, aynı dakika içinde sadece BİR kez çalışır
+            if saat_dakika in ["11:00", "18:30", "23:30"]:
+                
                 if saat_dakika == "11:00":
                     telegram_mesaj_gonder("☀️ Sabah bülteni hazırlanıyor...")
                     ajani_calistir(rapor_tipi="SABAH AÇILIŞ VE PORTFÖY RİSK KONTROLÜ")
-                    time.sleep(65) # 1 dakika uyu ki döngü aynı dakika içinde tekrar tetiklemesin
                 
                 elif saat_dakika == "18:30":
                     telegram_mesaj_gonder("🌙 Akşam bülteni hazırlanıyor...")
                     ajani_calistir(rapor_tipi="AKŞAM KAPANIŞ VE MALİYET DEĞERLENDİRMESİ")
-                    time.sleep(65)
                 
                 elif saat_dakika == "23:30":
                     telegram_mesaj_gonder("📉 Gece güncellemesi ve öz-eğitim başlatılıyor...")
-                    resmi_kaynaktan_temel_veri_guncelle()
-                    ajan_kendi_kendini_egit()
-                    time.sleep(65)
-    except Exception as e:
-            print(f"❌ Ana döngü hatası: {e}")
-            time.sleep(10)
+                    resmi_kaynaktan_temel_veri_guncelle() # Bu fonksiyon içinde API kullanılmıyor, güvenli
+                    ajan_kendi_kendini_egit() # Bu kendi analizini yapıyor
+                
+                # ÖNEMLİ: Hangi saat olursa olsun 65 saniye bekletiyoruz.
+                # Bu, döngünün aynı dakika içinde tekrar dönüp aynı isteği atmasını engeller.
+                time.sleep(65) 
         
-    time.sleep(2)
+        # Döngü çok hızlı dönmesin diye kısa bekleme
+        time.sleep(2)
+        
+    except Exception as e:
+        print(f"❌ Ana döngü hatası: {e}")
+        time.sleep(30) # Hata durumunda bekleme süresini artırdık        
+
 
 
 
