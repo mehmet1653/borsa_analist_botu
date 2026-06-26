@@ -117,32 +117,34 @@ hafizayi_yukle()
 
 def tek_hisse_resmi_veri_cek(sembol):
     try:
+        # 1. Bekleme süresini artırıyoruz (Yahoo'nun engellememesi için)
+        time.sleep(3) 
+        
         ticker = yf.Ticker(sembol)
-        # Sadece history değil, info da çek
+        # 2. Veri çekmeyi garanti altına al
         hist = ticker.history(period="1d")
+        fiyat = hist['Close'].iloc[-1] if not hist.empty else 0.0
+        
+        # 3. İstatistikleri manuel kutudan önceliklendir
         info = ticker.info
+        fk = info.get("trailingPE")
+        pddd = info.get("priceToBook")
         
-        # 1. Öncelik: Hisseden anlık fiyatı al
-        fiyat = hist['Close'].iloc[-1] if not hist.empty else info.get('regularMarketPrice')
-        
-        # 2. Eğer hala fiyat yoksa, önceki fiyatı kullan (Hafızadan)
-        if not fiyat:
-            fiyat = float(HAFIZA.get("temel_veriler", {}).get(sembol, {}).get("fiyat", 0))
+        # Eğer hala N/A ise, manuel VERI_KUTUSU'ndan çek
+        if fk is None or fk == "N/A":
+            fk = VERI_KUTUSU.get(sembol, {}).get("fk", "N/A")
+        if pddd is None or pddd == "N/A":
+            pddd = VERI_KUTUSU.get(sembol, {}).get("pddd", "N/A")
             
-        fk = info.get("trailingPE", "N/A")
-        pddd = info.get("priceToBook", "N/A")
-        
         HAFIZA["temel_veriler"][sembol] = {
             "fiyat": f"{fiyat:.2f}",
-            "fk": str(fk), 
+            "fk": str(fk),
             "pddd": str(pddd)
         }
         return True
-    except Exception as e: # <-- İşte buradaki 'e' hata mesajını tutar
-        print(f"HATA OLUŞTU ({sembol}): {e}") # <-- 'e'yi buraya ekle
-        
+    except Exception as e:
+        print(f"DEBUG: {sembol} verisi çekilemedi, manuel kutuya geçildi. Hata: {e}")
         return False
-        
         
 
 def resmi_kaynaktan_temel_veri_guncelle():
