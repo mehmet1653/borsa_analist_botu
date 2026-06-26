@@ -259,17 +259,26 @@ def telegram_komutlari_dinle():
 # 📊 BİLİMSEL VERİ ANALİZİ MOTORU
 # ==========================================
 def dunya_gundemini_cek():
-    url = "https://news.google.com/rss/search?q=finance+war+geopolitics+fed+inflation&hl=en-US&gl=US&ceid=US:en"
+    # URL'yi daha güvenli bir Google News arama linkiyle değiştirdik
+    url = "https://news.google.com/rss/search?q=global+finance+market&hl=en-US&gl=US&ceid=US:en"
     haberler = []
     try:
-        response = requests.get(url, timeout=10)
-        soup = BeautifulSoup(response.content, features="xml")
-        for item in soup.find_all('item')[:12]:
-            haberler.append(f"- {item.title.text}")
-    except: 
-        return "Haber akışı alınamadı."
-    return "\n".join(haberler)
-
+        # User-Agent ekleyerek bot engellemesini aşabiliriz
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=5) # Timeout'u 5 saniyeye düşürdük
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, features="xml")
+            items = soup.find_all('item')
+            for item in items[:5]: # Hızlıca ilk 5 haberi al
+                haberler.append(f"- {item.title.text}")
+        else:
+            return "Piyasa haberleri şu an alınamadı (Hata kodu: " + str(response.status_code) + ")"
+    except Exception as e: 
+        print(f"⚠️ Haber çekme hatası: {e}")
+        return "Küresel haber akışı şu an geçici olarak kapalı."
+    
+    return "\n".join(haberler) if haberler else "Piyasalar sakin."
+    
 def finansal_veri_topla(sembol):
     # 1. Fiyatı ve Temel Veriyi Çek
     veri = veri_yonlendirici(sembol)
