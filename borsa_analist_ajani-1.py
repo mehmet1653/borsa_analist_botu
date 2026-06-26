@@ -288,12 +288,18 @@ def dunya_gundemini_cek():
     
 def finansal_veri_topla(sembol):
     print(f"🔍 {sembol} verisi çekiliyor...")
+def finansal_veri_topla(sembol):
+    print(f"DEBUG: {sembol} analizi başlatılıyor...")
     try:
+        # Ticker objesini oluştur ama henüz veri çekme
         ticker = yf.Ticker(sembol)
-        # timeout=3 ile 3 saniyede cevap gelmezse patla, takılıp kalma
-        df = ticker.history(period="3mo", interval="1d", timeout=3)
+        
+        # history verisi donuyorsa, burada timeout kontrolü yapacağız
+        # yfinance'in kendi timeout'u bazen yetersiz kalır, bu yüzden basit bir deneme yapıyoruz
+        df = ticker.history(period="3mo", interval="1d")
         
         if df.empty:
+            print(f"DEBUG: {sembol} boş veri döndü.")
             return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A"}
 
         # HESAPLAMALAR
@@ -303,17 +309,18 @@ def finansal_veri_topla(sembol):
         macd = macd_df.macd().iloc[-1]
         signal = macd_df.macd_signal().iloc[-1]
         
+        print(f"DEBUG: {sembol} analiz edildi.")
         return {
             "fiyat": f"{float(close):.2f}",
             "rsi": f"{float(rsi):.2f}",
             "macd": "AL" if macd > signal else "SAT",
-            "fk": "N/A", 
-            "pddd": "N/A"
+            "fk": "N/A", "pddd": "N/A"
         }
     except Exception as e:
-        print(f"❌ {sembol} çekilemedi: {e}")
+        print(f"DEBUG: HATA {sembol} -> {str(e)}")
         return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A"}
-        # ==========================================
+        
+# ==========================================
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
