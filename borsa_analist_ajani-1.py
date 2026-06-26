@@ -11,8 +11,28 @@ import google.generativeai as genai
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import datetime as dt
+import investpy
+def bist_veri_cek(sembol):
+    try:
+        # THYAO.IS -> THYAO
+        clean_symbol = sembol.replace(".IS", "")
+        # Canlı fiyatı çek
+        df = investpy.get_stock_recent_data(stock=clean_symbol, country='turkey', interval='Daily')
+        guncel_fiyat = float(df['Close'].iloc[-1])
+        
+        # BIST için temel veriler (FK/PDDD) Investing'de bazen gün içi gecikmeli gelir
+        return {"fiyat": f"{guncel_fiyat:.2f}", "fk": "N/A", "pddd": "N/A"}
+    except:
+        return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
 from supabase import create_client, Client
 
+
+def veri_yonlendirici(sembol):
+    # Yerli hisseler '.IS' ile biter
+    if ".IS" in sembol:
+        return bist_veri_cek(sembol)
+    else:
+        return yabanci_veri_cek(sembol)
 # 🛑 MANUEL GÜNCEL VERİ İSTASYONU
 # ==========================================
 VERI_KUTUSU = {
@@ -245,53 +265,27 @@ def dunya_gundemini_cek():
     return "\n".join(haberler)
 
 def finansal_veri_topla(sembol):
-    try:
-        # 1. Ticker nesnesini oluştur
-        ticker = yf.Ticker(sembol)
+    # 1. Fiyatı ve Temel Veriyi Çek
+    veri = veri_yonlendirici(sembol)
+    
+    # 2. Teknik Analiz (RSI/MACD) için her zaman güncel veri indir
+    df = yf.download(sembol, period="1y", progress=False)
+    
+    if not df.empty:
+        close = df['Close'].astype(float)
+        rsi = ta.momentum.rsi(close, window=14).iloc[-1]
+        macd = ta.trend.macd(close).iloc[-1]
+        signal = ta.trend.macd_signal(close).iloc[-1]
         
-        # 2. Canlı verileri doğrudan çek (try-except bloğu içine alıyoruz)
-        try:
-            info = ticker.info
-            fiyat = info.get("currentPrice") or info.get("regularMarketPrice") or 0
-            fk = info.get("trailingPE")
-            pddd = info.get("priceToBook")
-        except:
-            fiyat, fk, pddd = 0, None, None
-
-        # 3. Eğer canlı veri gelmediyse, geçmiş 5 günlük veriden fiyatı çek (Garanti yol)
-        if fiyat == 0:
-            df = yf.download(sembol, period="5d", progress=False)
-            if not df.empty:
-                fiyat = float(df['Close'].iloc[-1])
-        
-        # 4. Verileri düzgün formata sok
-        fk_str = f"{float(fk):.2f}" if fk else "N/A"
-        pddd_str = f"{float(pddd):.2f}" if pddd else "N/A"
-        fiyat_str = f"{fiyat:.2f}" if fiyat > 0 else "Veri Yok"
-
-        # 5. İndikatör hesaplamaları (Aynı, çünkü bu zaten teknik veri)
-        df_ind = yf.download(sembol, period="1y", progress=False)
-        if not df_ind.empty:
-            close_series = df_ind['Close'].astype(float)
-            rsi = ta.momentum.rsi(close_series, window=14).iloc[-1]
-            macd = ta.trend.macd(close_series).iloc[-1]
-            signal = ta.trend.macd_signal(close_series).iloc[-1]
-            macd_durumu = "AL" if macd > signal else "SAT"
-        else:
-            rsi, macd_durumu = 0, "N/A"
-
         return {
-            "fiyat": fiyat_str,
-            "rsi": f"{rsi:.2f}" if rsi > 0 else "N/A",
-            "macd": macd_durumu,
-            "fk": fk_str,
-            "pddd": pddd_str,
-            "portfoy_durumu": "Mevcut" if sembol in HAFIZA.get("portfoy", {}) else "YOK"
+            "fiyat": veri['fiyat'],
+            "rsi": f"{rsi:.2f}",
+            "macd": "AL" if macd > signal else "SAT",
+            "fk": veri['fk'],
+            "pddd": veri['pddd']
         }
-    except Exception as e:
-        print(f"Hata ({sembol}): {e}")
-        return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A", "portfoy_durumu": "YOK"}
-        
+    return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A"}
+    
 
 # ==========================================
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
