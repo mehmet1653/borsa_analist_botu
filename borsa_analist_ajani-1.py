@@ -117,36 +117,41 @@ hafizayi_yukle()
 
 def tek_hisse_resmi_veri_cek(sembol):
     try:
-        # 1. Bekleme süresini artırıyoruz (Yahoo'nun engellememesi için)
-        time.sleep(3) 
-        
+        time.sleep(4) # Biraz daha sabır, veri çekme kalitesi artar
         ticker = yf.Ticker(sembol)
-        # 2. Veri çekmeyi garanti altına al
+        
+        # 1. Fiyatı al
         hist = ticker.history(period="1d")
         fiyat = hist['Close'].iloc[-1] if not hist.empty else 0.0
         
-        # 3. İstatistikleri manuel kutudan önceliklendir
+        # 2. info kısmına yüklen
         info = ticker.info
+        
+        # 3. PD/DD için en güncel olanı yakala: 
+        # Önce trailingPE/priceToBook, olmazsa bilançodan (balance_sheet) çek
         fk = info.get("trailingPE")
         pddd = info.get("priceToBook")
         
-        # Eğer hala N/A ise, manuel VERI_KUTUSU'ndan çek
-        if fk is None or fk == "N/A":
-            fk = VERI_KUTUSU.get(sembol, {}).get("fk", "N/A")
         if pddd is None or pddd == "N/A":
+            # Yahoo'nun bazen 'bookValue' verisini info'da tuttuğunu biliyoruz
+            book_value = info.get("bookValue")
+            if book_value and fiyat > 0:
+                pddd = round(fiyat / book_value, 2)
+        
+        # 4. Hala yoksa, yedek kutudan al (Eskisi bile olsa en güvenli veri bu)
+        if pddd is None:
             pddd = VERI_KUTUSU.get(sembol, {}).get("pddd", "N/A")
             
         HAFIZA["temel_veriler"][sembol] = {
             "fiyat": f"{fiyat:.2f}",
-            "fk": str(fk),
+            "fk": str(fk) if fk else "N/A",
             "pddd": str(pddd)
         }
         return True
     except Exception as e:
-        print(f"DEBUG: {sembol} verisi çekilemedi, manuel kutuya geçildi. Hata: {e}")
+        print(f"HATA ({sembol}): {e}")
         return False
         
-
 def resmi_kaynaktan_temel_veri_guncelle():
     print("🔄 Güvenilir kaynaktan resmi temel rasyolar çekiliyor...")
     guncellenenler = []
