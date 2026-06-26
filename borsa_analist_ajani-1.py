@@ -283,25 +283,37 @@ def finansal_veri_topla(sembol):
     # 1. Fiyatı ve Temel Veriyi Çek
     veri = veri_yonlendirici(sembol)
     
-    # 2. Teknik Analiz (RSI/MACD) için her zaman güncel veri indir
-    df = yf.download(sembol, period="1y", progress=False)
-    
-    if not df.empty:
-        close = df['Close'].astype(float)
-        rsi = ta.momentum.rsi(close, window=14).iloc[-1]
-        macd = ta.trend.macd(close).iloc[-1]
-        signal = ta.trend.macd_signal(close).iloc[-1]
+    # 2. Teknik Analiz için daha kısa veri süresi ve hata kontrolü
+    try:
+        # period="1y" yerine "3mo" (3 aylık) kullanmak yeterlidir ve çok daha hızlıdır.
+        df = yf.download(sembol, period="3mo", progress=False, timeout=5)
         
-        return {
-            "fiyat": veri['fiyat'],
-            "rsi": f"{rsi:.2f}",
-            "macd": "AL" if macd > signal else "SAT",
-            "fk": veri['fk'],
-            "pddd": veri['pddd']
-        }
-    return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A"}
-    
-
+        if not df.empty:
+            close = df['Close'].iloc[-1].astype(float) # DataFrame yapısı değişikliği için düzeltme
+            # Eğer DataFrame içinde Close bir Series ise .iloc[-1] kullanıyoruz
+            if isinstance(close, pd.Series):
+                close = close.iloc[-1]
+                
+            # RSI ve MACD hesaplaması
+            close_series = df['Close']
+            if isinstance(close_series, pd.DataFrame):
+                close_series = close_series.iloc[:, 0]
+                
+            rsi = ta.momentum.rsi(close_series, window=14).iloc[-1]
+            macd = ta.trend.macd(close_series).iloc[-1]
+            signal = ta.trend.macd_signal(close_series).iloc[-1]
+            
+            return {
+                "fiyat": veri['fiyat'],
+                "rsi": f"{float(rsi):.2f}" if not pd.isna(rsi) else "N/A",
+                "macd": "AL" if macd > signal else "SAT",
+                "fk": veri['fk'],
+                "pddd": veri['pddd']
+            }
+    except Exception as e:
+        print(f"⚠️ {sembol} için teknik veri çekilemedi: {e}")
+        
+    return {"fiyat": veri['fiyat'], "rsi": "N/A", "macd": "N/A", "fk": veri['fk'], "pddd": veri['pddd']}
 # ==========================================
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
