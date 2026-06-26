@@ -323,9 +323,9 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     toplu_metin = ""
     
     for s in takip_listesi:
-    v = finansal_veri_topla(s)
-    # Hisseler arası 1 saniye bekle, bu Yahoo'nun seni bot olarak engellemesini engeller
-    time.sleep(1) 
+      v = finansal_veri_topla(s)
+      # Hisseler arası 1 saniye bekle, bu Yahoo'nun seni bot olarak engellemesini engeller
+     time.sleep(1) 
     
     toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
     # PROMPT ARTIK SOLA YASLI VE DÜZGÜN
