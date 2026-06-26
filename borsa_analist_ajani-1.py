@@ -14,17 +14,19 @@ import datetime as dt
 import investpy
 def bist_veri_cek(sembol):
     try:
-        # THYAO.IS -> THYAO
-        clean_symbol = sembol.replace(".IS", "")
-        # Canlı fiyatı çek
-        df = investpy.get_stock_recent_data(stock=clean_symbol, country='turkey', interval='Daily')
-        guncel_fiyat = float(df['Close'].iloc[-1])
-        print(f"DEBUG: {sembol} verisi çekildi")
-        # BIST için temel veriler (FK/PDDD) Investing'de bazen gün içi gecikmeli gelir
-        return {"fiyat": f"{guncel_fiyat:.2f}", "fk": "N/A", "pddd": "N/A"}
+        # BIST için Yahoo'da .IS uzantısı yeterlidir.
+        # Eğer info boş dönerse, geçmiş veriden fiyatı çek.
+        ticker = yf.Ticker(sembol)
+        data = ticker.history(period="1d")
+        
+        if not data.empty:
+            guncel_fiyat = float(data['Close'].iloc[-1])
+            return {"fiyat": f"{guncel_fiyat:.2f}", "fk": "N/A", "pddd": "N/A"}
     except:
-        return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
-from supabase import create_client, Client
+        pass
+    return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
+    
+    from supabase import create_client, Client
 
 
 def veri_yonlendirici(sembol):
