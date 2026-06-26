@@ -326,7 +326,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
     toplu_metin = ""
     
     # 1. Verileri topla
-        for s in HAFIZA["takip_listesi"]:
+    for s in HAFIZA["takip_listesi"]:
         print(f"⏳ İşleniyor: {s}")
         # Eğer bir önceki adımda 20 saniyeden uzun sürerse buraya gelmiyor bile
         v = finansal_veri_topla(s) 
