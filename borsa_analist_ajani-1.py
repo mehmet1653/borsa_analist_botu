@@ -328,7 +328,7 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     takip_listesi = HAFIZA["takip_listesi"]
     toplu_metin = ""
     
-        for s in takip_listesi:
+    for s in takip_listesi:
         v = finansal_veri_topla(s)
         # Sadece verisi gelen kısımları yaz, boşsa "Veri Alınamadı" yazdır
         fk_str = v['fk'] if v['fk'] != 'N/A' else "Bilinmiyor"
