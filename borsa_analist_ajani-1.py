@@ -364,9 +364,9 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
     hafizayi_kaydet()
     def ajan_kendi_kendini_egit():
     # 1. Tarih hesaplamalarını netleştir
-    su_an_utc = dt.datetime.utcnow()
-    tr_saati = su_an_utc + dt.timedelta(hours=3)
-    yedi_gun_once = (tr_saati - dt.timedelta(days=7)).strftime('%Y-%m-%d')
+      su_an_utc = dt.datetime.utcnow()
+      tr_saati = su_an_utc + dt.timedelta(hours=3)
+      yedi_gun_once = (tr_saati - dt.timedelta(days=7)).strftime('%Y-%m-%d')
     
     # 2. Geçmiş verinin varlığını kontrol et
     if yedi_gun_once not in HAFIZA.get("tahmin_gunlugu", {}):
