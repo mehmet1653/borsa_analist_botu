@@ -23,7 +23,7 @@ VERI_KUTUSU = {
     "KCHOL.IS": {"fk": "18.63", "pddd": "0.69"},
     "MRGYO.IS": {"fk": "12.50", "pddd": "0.75"},
     "KRDMB.IS": {"fk": "11.80", "pddd": "1.55"},
-    KONTR.IS": {"fk": "0", "pddd": "0,81"}
+    "KONTR.IS": {"fk": "0", "pddd": "0,81"}
 }
     
 }
