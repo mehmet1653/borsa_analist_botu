@@ -245,69 +245,53 @@ def dunya_gundemini_cek():
     return "\n".join(haberler)
 
 def finansal_veri_topla(sembol):
-    # Eğer son fiyatlar hafızası yoksa başlat
-    if "son_fiyatlar" not in HAFIZA: HAFIZA["son_fiyatlar"] = {}
-    
-    for deneme in range(3):
+    try:
+        # 1. Ticker nesnesini oluştur
+        ticker = yf.Ticker(sembol)
+        
+        # 2. Canlı verileri doğrudan çek (try-except bloğu içine alıyoruz)
         try:
-            df = yf.download(sembol, period="1y", progress=False)
-            
-            # 🛑 HATA BURADAYDI: Bu if bloğunu try'ın içine aldım
-            if df.empty:
-                df = yf.download(f"{sembol}.US", period="1y", progress=False)
-            
-            if df.empty: 
-                return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A", "portfoy_durumu": "YOK"}
-            
-            # Veri düzenleme
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.droplevel(1)
-            df.columns = [str(col).strip() for col in df.columns]
-            
-            guncel_fiyat = float(df['Close'].iloc[-1])
-            HAFIZA["son_fiyatlar"][sembol] = guncel_fiyat
-            
-            # İndikatörler
-            close_series = df['Close'].astype(float)
-            df['RSI'] = ta.momentum.rsi(close_series, window=14)
-            df['SMA_50'] = ta.trend.sma_indicator(close_series, window=50)
-            df['MACD'] = ta.trend.macd(close_series)
-            df['MACD_Signal'] = ta.trend.macd_signal(close_series)
-            df['ADX'] = ta.trend.adx(df['High'].squeeze(), df['Low'].squeeze(), close_series, window=14)
-            
-            portfoy_notu = "YOK"
-            if sembol in HAFIZA["portfoy"]:
-                p = HAFIZA["portfoy"][sembol]
-                kar_zarar = ((guncel_fiyat - p['maliyet']) / p['maliyet']) * 100
-                portfoy_notu = f"Lot: {p['lot']}, Maliyet: {p['maliyet']:.2f}, Kâr/Zarar: %{kar_zarar:.2f}"
+            info = ticker.info
+            fiyat = info.get("currentPrice") or info.get("regularMarketPrice") or 0
+            fk = info.get("trailingPE")
+            pddd = info.get("priceToBook")
+        except:
+            fiyat, fk, pddd = 0, None, None
 
-            fk_degeri = "-"
-            pddd_degeri = "-"
-            
-            if sembol in VERI_KUTUSU:
-                fk_degeri = VERI_KUTUSU[sembol]["fk"]
-                pddd_degeri = VERI_KUTUSU[sembol]["pddd"]
-            elif sembol in HAFIZA.get("temel_veriler", {}):
-                fk_degeri = HAFIZA["temel_veriler"][sembol].get("fk", "-")
-                pddd_degeri = HAFIZA["temel_veriler"][sembol].get("pddd", "-")
+        # 3. Eğer canlı veri gelmediyse, geçmiş 5 günlük veriden fiyatı çek (Garanti yol)
+        if fiyat == 0:
+            df = yf.download(sembol, period="5d", progress=False)
+            if not df.empty:
+                fiyat = float(df['Close'].iloc[-1])
+        
+        # 4. Verileri düzgün formata sok
+        fk_str = f"{float(fk):.2f}" if fk else "N/A"
+        pddd_str = f"{float(pddd):.2f}" if pddd else "N/A"
+        fiyat_str = f"{fiyat:.2f}" if fiyat > 0 else "Veri Yok"
 
-            macd_durumu = "AL" if df['MACD'].iloc[-1] > df['MACD_Signal'].iloc[-1] else "SAT"
+        # 5. İndikatör hesaplamaları (Aynı, çünkü bu zaten teknik veri)
+        df_ind = yf.download(sembol, period="1y", progress=False)
+        if not df_ind.empty:
+            close_series = df_ind['Close'].astype(float)
+            rsi = ta.momentum.rsi(close_series, window=14).iloc[-1]
+            macd = ta.trend.macd(close_series).iloc[-1]
+            signal = ta.trend.macd_signal(close_series).iloc[-1]
+            macd_durumu = "AL" if macd > signal else "SAT"
+        else:
+            rsi, macd_durumu = 0, "N/A"
 
-            return {
-                "fiyat": f"{guncel_fiyat:.2f}" if guncel_fiyat > 0 else "Eksik",
-                "rsi": f"{df['RSI'].iloc[-1]:.2f}" if not pd.isna(df['RSI'].iloc[-1]) else "Eksik",
-                "macd": macd_durumu,
-                "fk": fk_degeri,
-                "pddd": pddd_degeri,
-                "portfoy_durumu": portfoy_notu
-            }
-        except Exception as e:
-            print(f"Veri çekme hatası ({sembol}): {e}")
-            time.sleep(1)
-            
-    son_fiyat = HAFIZA["son_fiyatlar"].get(sembol, 0)
-    return {"fiyat": f"{son_fiyat:.2f}", "rsi": "N/A", "macd": "N/A", "fk": "-", "pddd": "-", "portfoy_durumu": "YOK"}
-    
+        return {
+            "fiyat": fiyat_str,
+            "rsi": f"{rsi:.2f}" if rsi > 0 else "N/A",
+            "macd": macd_durumu,
+            "fk": fk_str,
+            "pddd": pddd_str,
+            "portfoy_durumu": "Mevcut" if sembol in HAFIZA.get("portfoy", {}) else "YOK"
+        }
+    except Exception as e:
+        print(f"Hata ({sembol}): {e}")
+        return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A", "portfoy_durumu": "YOK"}
+        
 
 # ==========================================
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
