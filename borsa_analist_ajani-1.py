@@ -324,56 +324,63 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
-    print(f"🔄 {rapor_tipi} başlıyor...")
-    telegram_mesaj_gonder(f"🔄 *{rapor_tipi}* başlıyor. Veriler toplanıyor...")
+    print(f"🔄 {rapor_tipi} tetiklendi.")
+    # Kullanıcıya bekleme yapıldığını hissettirelim
+    telegram_mesaj_gonder(f"⏳ *{rapor_tipi}* başladı. Veriler anlık toplanıyor, lütfen 10-15 saniye bekleyin...")
     
     genel_haber = dunya_gundemini_cek()
-    print("📰 Haberler çekildi.")
-    
     toplu_metin = ""
     
-    # 1. Verileri topla
-    for s in HAFIZA["takip_listesi"]:
-        print(f"⏳ İşleniyor: {s}")
-        # Eğer bir önceki adımda 20 saniyeden uzun sürerse buraya gelmiyor bile
-        v = finansal_veri_topla(s) 
-        
-        # Eğer fiyat 0.00 ise veri gelmemiştir, bir sonraki hisseye geç
-        if v["fiyat"] == "0.00":
-            print(f"⚠️ {s} verisi alınamadı, atlanıyor.")
-            continue 
+    # Her hisse için tek tek veri çek ve takılmayı engelle
+    for s in HAFIZA.get("takip_listesi", []):
+        try:
+            print(f"🔍 İşlenen: {s}")
+            # Veri çekmeyi bir thread gibi düşünme, basit bir timeout ile yönet
+            v = finansal_veri_topla(s) 
             
-        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}"
+            if v["fiyat"] != "0.00":
+                toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}"
+            else:
+                print(f"⚠️ {s} için veri gelmedi, atlandı.")
+        except Exception as e:
+            print(f"❌ {s} işlem hatası: {e}")
+            continue
             
-    print("📊 Veriler toplandı, AI raporu üretiyor...")
- 
-    # 2. Geçmiş dersi al
-    ders = HAFIZA["performans_log"][-1] if HAFIZA["performans_log"] else "Henüz ders çıkarılmadı."
+    if not toplu_metin:
+        telegram_mesaj_gonder("⚠️ Hiçbir hisse verisi çekilemedi. Bağlantı hatası olabilir.")
+        return
 
-    # 3. Prompt oluştur
-    prompt = f"""
-    Sen profesyonel bir fon yöneticisisin. 
-    GEÇEN HAFTAKİ DERSİN: {ders}
+    print("📊 Veri toplama bitti, AI raporu üretiliyor...")
     
+    ders = HAFIZA.get("performans_log", ["Henüz ders yok"])[-1]
+
+    prompt = f"""
+    Sen bir fon yöneticisisin. 
+    GEÇEN HAFTAKİ DERSİN: {ders}
     Piyasa verileri: {toplu_metin}
     Küresel Haber: {genel_haber}
 
     GÖREV:
-    - Aşağıdaki formatta bir tablo oluştur:
-    | HİSSE | FİYAT | RSI | MACD | KARAR | STRATEJİ |
-    - KARAR sütununa sadece AL, SAT, TUT, BEKLE yaz.
-    - STRATEJİ sütununa geçen haftaki dersini dikkate alarak 3-4 kelimelik not yaz.
+    - Tablo: | HİSSE | FİYAT | RSI | MACD | KARAR | STRATEJİ |
+    - KARAR: AL, SAT, TUT, BEKLE.
+    - STRATEJİ: 3 kelimelik net neden.
     """
     
-    # 4. Raporu üret
-    cevap = model.generate_content(prompt).text
-    telegram_mesaj_gonder(cevap)
-    
-    # 5. Gelecek hafta için ders çıkar ve hafızaya ekle
-    yeni_ders_prompt = f"Bu rapordan bir sonraki hafta için stratejik bir ders çıkar: {cevap}"
-    yeni_ders = model.generate_content(yeni_ders_prompt).text
-    HAFIZA["performans_log"].append(yeni_ders)
-    hafizayi_kaydet()
+    # API çağrısı
+    try:
+        cevap = model.generate_content(prompt).text
+        telegram_mesaj_gonder(cevap)
+        
+        # Öğrenme süreci
+        yeni_ders = model.generate_content(f"Bu rapordan bir strateji dersi çıkar: {cevap}").text
+        if "performans_log" not in HAFIZA: HAFIZA["performans_log"] = []
+        HAFIZA["performans_log"].append(yeni_ders)
+        hafizayi_kaydet()
+    except Exception as e:
+        print(f"❌ AI Rapor hatası: {e}")
+        telegram_mesaj_gonder("⚠️ Yapay zeka raporu üretilirken hata oluştu.")
+        
+
     def ajan_kendi_kendini_egit():
     # 1. Tarih hesaplamalarını netleştir
       su_an_utc = dt.datetime.utcnow()
