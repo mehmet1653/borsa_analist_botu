@@ -336,26 +336,29 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     
         toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
     # PROMPT ARTIK SOLA YASLI VE DÜZGÜN
-    prompt = f"""Sen kıdemli bir finansal portföy yöneticisisin. 
-       Aşağıdaki piyasa verilerini ve küresel haberleri kullanarak profesyonel bir analiz yap.
-    
-       VERİLER: {toplu_metin}
-       HABERLER: {genel_haber}
-    
-    GÖREV: Tabloyu doldururken şu kuralları uygula:
-    1. RSI 30 altı ise "AŞIRI SATIM", 70 üstü ise "AŞIRI ALIM" yorumunu mutlaka ekle.
-    2. MACD ve RSI çelişiyorsa "YATAY/BEKLE" kararı ver.
-    3. Fiyatı 0 gelen hisseler için "VERİ HATASI: Fiyat alınamadı" notu düş.
-    
+        prompt = f"""Sen bir 'Hisse Dedektifi' ve 'Kıdemli Portföy Yöneticisisin'.
+    Görevin: Aşağıdaki listedeki her hisseyi tek tek ele al.
 
-| HİSSE | FİYAT | RSI | MACD | PD/DD | KARAR | YORUM |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+    PİYASA VERİLERİ: {toplu_metin}
+    HABERLER: {genel_haber}
 
-    ... (Tablo yapın) ...
+    HER HİSSE İÇİN FORMATIN ŞU OLSUN (Sırayla git):
+    
+    ---
+    ### 📌 [HİSSE KODU]
+    * **Güncel Fiyat:** {v['fiyat']} TL
+    * **Teknik Göstergeler:** RSI={v['rsi']}, MACD={v['macd']}, PD/DD={v['pddd']}
+    * **Arka Plan ve Hikaye:** (Burada bu hissenin güncel durumu, varsa patron satışı, finansal sıkıntısı, sektöründeki özel haberler veya piyasa algısını yaz. Eğer veri eksikse "Veri eksik" de ama teknik sinyale göre yorumla.)
+    * **Analistin Kararı:** (AL / SAT / TUT / BEKLE)
+    * **Neden:** (Teknik indikatörler ve haberlerin harmanlanmış özeti)
+    ---
+
     KURALLAR:
-    - Tablonun "YORUM" sütunu boş kalmasın. Eğer veri eksikse (Fiyat=0/-), teknik sinyallere (RSI/MACD) bakarak "Veri eksik olsa da teknik momentum X yönünde" şeklinde bir tahminde bulun.
-    - Hisselerin altındaki her satırı mutlaka doldur.
-    """    
+    1. Tablo yapma, liste/başlık formatı kullan.
+    2. Haberleri ve indikatörleri sadece rakam olarak görme; "RSI düşük ama şirket finansal sıkıntıda, o yüzden bu RSI'a kanma" gibi akıllıca yorumlar yap.
+    3. Hisselerin arka planında (eğer biliyorsan) patron hareketleri veya sektörel krizleri mutlaka belirt.
+    """
+
     try:
         cevap = model.generate_content(prompt).text
         # Kayıt kısmı
