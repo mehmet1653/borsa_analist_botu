@@ -26,14 +26,20 @@ def bist_veri_cek(sembol):
 def yabanci_veri_cek(sembol):
     try:
         ticker = yf.Ticker(sembol)
+        # .info yerine .history kullanarak fiyatı garantiye alalım
+        data = ticker.history(period="5d")
+        fiyat = float(data['Close'].iloc[-1]) if not data.empty else 0.0
+        
+        # info'yu sadece temel veriler için kullanalım
         info = ticker.info
-        fiyat = info.get("currentPrice") or info.get("regularMarketPrice") or 0
         fk = info.get("trailingPE", "N/A")
         pddd = info.get("priceToBook", "N/A")
-        return {"fiyat": f"{fiyat:.2f}", "fk": f"{str(fk)}", "pddd": f"{str(pddd)}"}
-    except:
+        
+        return {"fiyat": f"{fiyat:.2f}", "fk": str(fk), "pddd": str(pddd)}
+    except Exception as e:
+        print(f"⚠️ {sembol} veri çekme hatası: {e}")
         return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
-
+        
 def veri_yonlendirici(sembol):
     return bist_veri_cek(sembol) if ".IS" in sembol else yabanci_veri_cek(sembol)
     
@@ -328,20 +334,23 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
         toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
     
     # PROMPT ARTIK SOLA YASLI VE DÜZGÜN
-    prompt = f"""Sen bir Makro-Stratejistsin.
-    KÜRESEL GÜNDEM: {genel_haber}
-    VERİLER: {toplu_metin}
+        prompt = f"""Sen kıdemli bir finansal portföy yöneticisisin. 
+    Aşağıdaki piyasa verilerini ve küresel haberleri kullanarak profesyonel bir analiz yap.
     
-    GÖREV: Aşağıdaki tabloyu doldur.
+    VERİLER: {toplu_metin}
+    HABERLER: {genel_haber}
+    
+    GÖREV: Tabloyu doldururken şu kuralları uygula:
+    1. RSI 30 altı ise "AŞIRI SATIM", 70 üstü ise "AŞIRI ALIM" yorumunu mutlaka ekle.
+    2. MACD ve RSI çelişiyorsa "YATAY/BEKLE" kararı ver.
+    3. Fiyatı 0 gelen hisseler için "VERİ HATASI: Fiyat alınamadı" notu düş.
+    
 
 | HİSSE | FİYAT | RSI | MACD | PD/DD | KARAR | YORUM |
-    | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-    
-    KURALLAR:
-    - HİSSE, FİYAT ve KARAR kısımlarını **KALIN** yaz.
-    - YORUM VE GEREKÇE: Önce YÖN (Yükselecek/Düşecek/Yatay), sonra "ÇÜNKÜ" ile tek cümlelik gerekçe.
-    - Başka açıklama yapma, sadece tabloyu gönder."""
-    
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+
+    ... (Tablo yapın) ...
+    """    
     try:
         cevap = model.generate_content(prompt).text
         # Kayıt kısmı
