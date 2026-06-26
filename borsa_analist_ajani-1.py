@@ -325,15 +325,15 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     for s in takip_listesi:
         v = finansal_veri_topla(s)
         # Hisseler arası 1 saniye bekle, bu Yahoo'nun seni bot olarak engellemesini engeller
-     time.sleep(1) 
+        time.sleep(1) 
     
-    toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
+        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
     # PROMPT ARTIK SOLA YASLI VE DÜZGÜN
-prompt = f"""Sen kıdemli bir finansal portföy yöneticisisin. 
-    Aşağıdaki piyasa verilerini ve küresel haberleri kullanarak profesyonel bir analiz yap.
+      prompt = f"""Sen kıdemli bir finansal portföy yöneticisisin. 
+       Aşağıdaki piyasa verilerini ve küresel haberleri kullanarak profesyonel bir analiz yap.
     
-    VERİLER: {toplu_metin}
-    HABERLER: {genel_haber}
+       VERİLER: {toplu_metin}
+       HABERLER: {genel_haber}
     
     GÖREV: Tabloyu doldururken şu kuralları uygula:
     1. RSI 30 altı ise "AŞIRI SATIM", 70 üstü ise "AŞIRI ALIM" yorumunu mutlaka ekle.
