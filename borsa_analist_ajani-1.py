@@ -329,7 +329,7 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     
         toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
     # PROMPT ARTIK SOLA YASLI VE DÜZGÜN
-      prompt = f"""Sen kıdemli bir finansal portföy yöneticisisin. 
+    prompt = f"""Sen kıdemli bir finansal portföy yöneticisisin. 
        Aşağıdaki piyasa verilerini ve küresel haberleri kullanarak profesyonel bir analiz yap.
     
        VERİLER: {toplu_metin}
