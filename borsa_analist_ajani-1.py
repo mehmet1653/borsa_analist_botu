@@ -323,52 +323,46 @@ def finansal_veri_topla(sembol):
     # ==========================================
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
-def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
-    telegram_mesaj_gonder("🌍 Küresel piyasalar taranıyor...")
+def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
+    telegram_mesaj_gonder(f"🔄 *{rapor_tipi}* başlıyor. Veriler toplanıyor...")
+    
     genel_haber = dunya_gundemini_cek()
-    takip_listesi = HAFIZA["takip_listesi"]
     toplu_metin = ""
     
-    for s in takip_listesi:
+    # 1. Verileri topla
+    for s in HAFIZA["takip_listesi"]:
+        time.sleep(2) 
         v = finansal_veri_topla(s)
-        # Hisseler arası 1 saniye bekle, bu Yahoo'nun seni bot olarak engellemesini engeller
-        time.sleep(5) 
-    
         toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
-    # PROMPT ARTIK SOLA YASLI VE DÜZGÜN
-        prompt = f"""Sen bir 'Hisse Dedektifi' ve 'Kıdemli Portföy Yöneticisisin'.
-    Görevin: Aşağıdaki listedeki her hisseyi tek tek ele al.
-
-    PİYASA VERİLERİ: {toplu_metin}
-    HABERLER: {genel_haber}
-
-    HER HİSSE İÇİN FORMATIN ŞU OLSUN (Sırayla git):
     
-    ---
-    ### 📌 [HİSSE KODU]
-    * **Güncel Fiyat:** {v['fiyat']} TL
-    * **Teknik Göstergeler:** RSI={v['rsi']}, MACD={v['macd']}, PD/DD={v['pddd']}
-    * **Arka Plan ve Hikaye:** (Burada bu hissenin güncel durumu, varsa patron satışı, finansal sıkıntısı, sektöründeki özel haberler veya piyasa algısını yaz. Eğer veri eksikse "Veri eksik" de ama teknik sinyale göre yorumla.)
-    * **Analistin Kararı:** (AL / SAT / TUT / BEKLE)
-    * **Neden:** (Teknik indikatörler ve haberlerin harmanlanmış özeti)
-    ---
+    # 2. Geçmiş dersi al
+    ders = HAFIZA["performans_log"][-1] if HAFIZA["performans_log"] else "Henüz ders çıkarılmadı."
 
-    KURALLAR:
-    1. Tablo yapma, liste/başlık formatı kullan.
-    2. Haberleri ve indikatörleri sadece rakam olarak görme; "RSI düşük ama şirket finansal sıkıntıda, o yüzden bu RSI'a kanma" gibi akıllıca yorumlar yap.
-    3. Hisselerin arka planında (eğer biliyorsan) patron hareketleri veya sektörel krizleri mutlaka belirt.
+    # 3. Prompt oluştur
+    prompt = f"""
+    Sen profesyonel bir fon yöneticisisin. 
+    GEÇEN HAFTAKİ DERSİN: {ders}
+    
+    Piyasa verileri: {toplu_metin}
+    Küresel Haber: {genel_haber}
+
+    GÖREV:
+    - Aşağıdaki formatta bir tablo oluştur:
+    | HİSSE | FİYAT | RSI | MACD | KARAR | STRATEJİ |
+    - KARAR sütununa sadece AL, SAT, TUT, BEKLE yaz.
+    - STRATEJİ sütununa geçen haftaki dersini dikkate alarak 3-4 kelimelik not yaz.
     """
-
-    try:
-        cevap = model.generate_content(prompt).text
-        # Kayıt kısmı
-        tarih_key = dt.datetime.utcnow().strftime('%Y-%m-%d')
-        HAFIZA["tahmin_gunlugu"][tarih_key] = {"ai_raporu_kesiti": cevap, "piyasa_durumu": toplu_metin}
-        hafizayi_kaydet()
-        telegram_mesaj_gonder(cevap)
-    except Exception as e:
-        telegram_mesaj_gonder(f"⚠️ Hata: {e}")
-def ajan_kendi_kendini_egit():
+    
+    # 4. Raporu üret
+    cevap = model.generate_content(prompt).text
+    telegram_mesaj_gonder(cevap)
+    
+    # 5. Gelecek hafta için ders çıkar ve hafızaya ekle
+    yeni_ders_prompt = f"Bu rapordan bir sonraki hafta için stratejik bir ders çıkar: {cevap}"
+    yeni_ders = model.generate_content(yeni_ders_prompt).text
+    HAFIZA["performans_log"].append(yeni_ders)
+    hafizayi_kaydet()
+    def ajan_kendi_kendini_egit():
     # 1. Tarih hesaplamalarını netleştir
     su_an_utc = dt.datetime.utcnow()
     tr_saati = su_an_utc + dt.timedelta(hours=3)
