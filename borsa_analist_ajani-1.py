@@ -287,40 +287,33 @@ def dunya_gundemini_cek():
     return "\n".join(haberler) if haberler else "Piyasalar sakin."
     
 def finansal_veri_topla(sembol):
+    print(f"🔍 {sembol} verisi çekiliyor...")
     try:
-        # User-Agent ekleyerek bot engellemesini aşalım
         ticker = yf.Ticker(sembol)
-        # 3 aylık veri çekmek teknik analiz (RSI/MACD) için yeterli ve hızlıdır
-        df = ticker.history(period="3mo", interval="1d")
+        # timeout=3 ile 3 saniyede cevap gelmezse patla, takılıp kalma
+        df = ticker.history(period="3mo", interval="1d", timeout=3)
         
         if df.empty:
             return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A"}
 
-        # Teknik Analiz Hesaplamaları
+        # HESAPLAMALAR
         close = df['Close'].iloc[-1]
         rsi = ta.momentum.rsi(df['Close'], window=14).iloc[-1]
-        macd = ta.trend.macd(df['Close']).iloc[-1]
-        signal = ta.trend.macd_signal(df['Close']).iloc[-1]
+        macd_df = ta.trend.MACD(df['Close'])
+        macd = macd_df.macd().iloc[-1]
+        signal = macd_df.macd_signal().iloc[-1]
         
-        # Temel veriler (Hata alırsak try-except ile yakala)
-        try:
-            info = ticker.info
-            fk = info.get("trailingPE", "N/A")
-            pddd = info.get("priceToBook", "N/A")
-        except:
-            fk, pddd = "N/A", "N/A"
-
         return {
             "fiyat": f"{float(close):.2f}",
             "rsi": f"{float(rsi):.2f}",
             "macd": "AL" if macd > signal else "SAT",
-            "fk": str(fk),
-            "pddd": str(pddd)
+            "fk": "N/A", 
+            "pddd": "N/A"
         }
     except Exception as e:
-        print(f"HATA: {sembol} - {e}")
+        print(f"❌ {sembol} çekilemedi: {e}")
         return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A"}
-    # ==========================================
+        # ==========================================
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
@@ -333,12 +326,18 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
     toplu_metin = ""
     
     # 1. Verileri topla
-    for s in HAFIZA["takip_listesi"]:
-        print(f"🔍 {s} analizi yapılıyor...") # Burası konsolda akıyor mu?
-        v = finansal_veri_topla(s)
-        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
-        time.sleep(2) # Bunu 2'ye düşür
-    
+        for s in HAFIZA["takip_listesi"]:
+        print(f"⏳ İşleniyor: {s}")
+        # Eğer bir önceki adımda 20 saniyeden uzun sürerse buraya gelmiyor bile
+        v = finansal_veri_topla(s) 
+        
+        # Eğer fiyat 0.00 ise veri gelmemiştir, bir sonraki hisseye geç
+        if v["fiyat"] == "0.00":
+            print(f"⚠️ {s} verisi alınamadı, atlanıyor.")
+            continue 
+            
+        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}"
+            
     print("📊 Veriler toplandı, AI raporu üretiyor...")
  
     # 2. Geçmiş dersi al
