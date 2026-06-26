@@ -324,17 +324,23 @@ def finansal_veri_topla(sembol):
 # 🧠 ÖZ-YANSITMALI VE ÖĞRENEN ANALİZ MOTORU (GÜNCELLENMİŞ)
 # ==========================================
 def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
+    print(f"🔄 {rapor_tipi} başlıyor...")
     telegram_mesaj_gonder(f"🔄 *{rapor_tipi}* başlıyor. Veriler toplanıyor...")
     
     genel_haber = dunya_gundemini_cek()
+    print("📰 Haberler çekildi.")
+    
     toplu_metin = ""
     
     # 1. Verileri topla
     for s in HAFIZA["takip_listesi"]:
-        time.sleep(2) 
+        print(f"🔍 {s} analizi yapılıyor...") # Burası konsolda akıyor mu?
         v = finansal_veri_topla(s)
         toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
+        time.sleep(2) # Bunu 2'ye düşür
     
+    print("📊 Veriler toplandı, AI raporu üretiyor...")
+ 
     # 2. Geçmiş dersi al
     ders = HAFIZA["performans_log"][-1] if HAFIZA["performans_log"] else "Henüz ders çıkarılmadı."
 
