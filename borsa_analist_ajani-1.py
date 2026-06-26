@@ -1,5 +1,5 @@
 import os
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+import os
 import threading
 import time
 import json
@@ -11,30 +11,18 @@ import google.generativeai as genai
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import datetime as dt
-import investpy
+from http.server import SimpleHTTPRequestHandler, HTTPServer
+from supabase import create_client, Client
 def bist_veri_cek(sembol):
     try:
-        # BIST için Yahoo'da .IS uzantısı yeterlidir.
-        # Eğer info boş dönerse, geçmiş veriden fiyatı çek.
         ticker = yf.Ticker(sembol)
         data = ticker.history(period="1d")
-        
         if not data.empty:
             guncel_fiyat = float(data['Close'].iloc[-1])
             return {"fiyat": f"{guncel_fiyat:.2f}", "fk": "N/A", "pddd": "N/A"}
     except:
         pass
     return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
-    
-    from supabase import create_client, Client
-
-
-def veri_yonlendirici(sembol):
-    # Yerli hisseler '.IS' ile biter
-    if ".IS" in sembol:
-        return bist_veri_cek(sembol)
-    else:
-        return yabanci_veri_cek(sembol)
 
 def yabanci_veri_cek(sembol):
     try:
@@ -43,10 +31,14 @@ def yabanci_veri_cek(sembol):
         fiyat = info.get("currentPrice") or info.get("regularMarketPrice") or 0
         fk = info.get("trailingPE", "N/A")
         pddd = info.get("priceToBook", "N/A")
-        return {"fiyat": f"{fiyat:.2f}", "fk": f"{fk}", "pddd": f"{pddd}"}
+        return {"fiyat": f"{fiyat:.2f}", "fk": f"{str(fk)}", "pddd": f"{str(pddd)}"}
     except:
         return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
 
+def veri_yonlendirici(sembol):
+    return bist_veri_cek(sembol) if ".IS" in sembol else yabanci_veri_cek(sembol)
+    
+    
 
 # 🛑 MANUEL GÜNCEL VERİ İSTASYONU
 # ==========================================
