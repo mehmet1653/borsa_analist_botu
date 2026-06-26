@@ -117,37 +117,32 @@ hafizayi_yukle()
 
 def tek_hisse_resmi_veri_cek(sembol):
     try:
-        # Ticker bilgisini çek
         ticker = yf.Ticker(sembol)
+        # Sadece history değil, info da çek
+        hist = ticker.history(period="1d")
         info = ticker.info
         
-        # 1. Öncelik: Yahoo'dan gelen veri
-        fk = info.get("trailingPE")
-        pddd = info.get("priceToBook")
+        # 1. Öncelik: Hisseden anlık fiyatı al
+        fiyat = hist['Close'].iloc[-1] if not hist.empty else info.get('regularMarketPrice')
         
-        # 2. Öncelik: Eğer Yahoo veri vermezse ve manuel kutuda varsa onu kullan
-        if (not fk or not pddd) and sembol in VERI_KUTUSU:
-            fk = VERI_KUTUSU[sembol]["fk"]
-            pddd = VERI_KUTUSU[sembol]["pddd"]
-        
-        # Veri geldiyse hafızaya yaz (Yabancı veya Yerli fark etmeksizin)
-        if fk and pddd:
-            HAFIZA["temel_veriler"][sembol] = {
-                "fk": f"{float(fk):.2f}", 
-                "pddd": f"{float(pddd):.2f}",
-                "ihracat": "-", "ozsermaye_kar": "-"
-            }
-            # Hafızaya kalıcı olarak kaydet
-            hafizayi_kaydet()
-            return True
-        else:
-            # Veri yine de gelmediyse N/A olarak işaretle
-            HAFIZA["temel_veriler"][sembol] = {"fk": "N/A", "pddd": "N/A"}
-            return False
+        # 2. Eğer hala fiyat yoksa, önceki fiyatı kullan (Hafızadan)
+        if not fiyat:
+            fiyat = float(HAFIZA.get("temel_veriler", {}).get(sembol, {}).get("fiyat", 0))
             
-    except Exception as e:
-        print(f"Hisse verisi çekilirken hata oluştu ({sembol}): {e}")
+        fk = info.get("trailingPE", "N/A")
+        pddd = info.get("priceToBook", "N/A")
+        
+        HAFIZA["temel_veriler"][sembol] = {
+            "fiyat": f"{fiyat:.2f}",
+            "fk": str(fk), 
+            "pddd": str(pddd)
+        }
+        return True
+    except Exception as e: # <-- İşte buradaki 'e' hata mesajını tutar
+        print(f"HATA OLUŞTU ({sembol}): {e}") # <-- 'e'yi buraya ekle
+        
         return False
+        
         
 
 def resmi_kaynaktan_temel_veri_guncelle():
@@ -356,6 +351,9 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 
     ... (Tablo yapın) ...
+    KURALLAR:
+    - Tablonun "YORUM" sütunu boş kalmasın. Eğer veri eksikse (Fiyat=0/-), teknik sinyallere (RSI/MACD) bakarak "Veri eksik olsa da teknik momentum X yönünde" şeklinde bir tahminde bulun.
+    - Hisselerin altındaki her satırı mutlaka doldur.
     """    
     try:
         cevap = model.generate_content(prompt).text
