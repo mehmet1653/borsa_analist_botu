@@ -328,9 +328,9 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     
     GÖREV: Aşağıdaki tabloyu doldur.
 
-| **HİSSE** | **FİYAT** | **KARAR** | **YORUM VE GEREKÇE** |
-| :--- | :--- | :--- | :--- |
-
+| HİSSE | FİYAT | RSI | MACD | PD/DD | KARAR | YORUM |
+    | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+    
     KURALLAR:
     - HİSSE, FİYAT ve KARAR kısımlarını **KALIN** yaz.
     - YORUM VE GEREKÇE: Önce YÖN (Yükselecek/Düşecek/Yatay), sonra "ÇÜNKÜ" ile tek cümlelik gerekçe.
