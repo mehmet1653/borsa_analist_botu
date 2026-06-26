@@ -25,8 +25,6 @@ VERI_KUTUSU = {
     "KRDMB.IS": {"fk": "11.80", "pddd": "1.55"},
     "KONTR.IS": {"fk": "0", "pddd": "0,81"}
 }
-    
-}
 
 
 PORTFOY_YEDEK = {
