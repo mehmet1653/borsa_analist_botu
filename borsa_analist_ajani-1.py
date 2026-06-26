@@ -33,6 +33,19 @@ def veri_yonlendirici(sembol):
         return bist_veri_cek(sembol)
     else:
         return yabanci_veri_cek(sembol)
+
+def yabanci_veri_cek(sembol):
+    try:
+        ticker = yf.Ticker(sembol)
+        info = ticker.info
+        fiyat = info.get("currentPrice") or info.get("regularMarketPrice") or 0
+        fk = info.get("trailingPE", "N/A")
+        pddd = info.get("priceToBook", "N/A")
+        return {"fiyat": f"{fiyat:.2f}", "fk": f"{fk}", "pddd": f"{pddd}"}
+    except:
+        return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
+
+
 # 🛑 MANUEL GÜNCEL VERİ İSTASYONU
 # ==========================================
 VERI_KUTUSU = {
