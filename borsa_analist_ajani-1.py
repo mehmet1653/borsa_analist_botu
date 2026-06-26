@@ -24,22 +24,21 @@ def bist_veri_cek(sembol):
     return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
 
 def yabanci_veri_cek(sembol):
-    try:
-        ticker = yf.Ticker(sembol)
-        # .info yerine .history kullanarak fiyatı garantiye alalım
-        data = ticker.history(period="5d")
-        fiyat = float(data['Close'].iloc[-1]) if not data.empty else 0.0
-        
-        # info'yu sadece temel veriler için kullanalım
-        info = ticker.info
-        fk = info.get("trailingPE", "N/A")
-        pddd = info.get("priceToBook", "N/A")
-        
-        return {"fiyat": f"{fiyat:.2f}", "fk": str(fk), "pddd": str(pddd)}
-    except Exception as e:
-        print(f"⚠️ {sembol} veri çekme hatası: {e}")
-        return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
-        
+    ticker = yf.Ticker(sembol)
+    for i in range(3):  # 3 kez deneme yap
+        try:
+            data = ticker.history(period="5d")
+            if not data.empty:
+                fiyat = float(data['Close'].iloc[-1])
+                info = ticker.info
+                # Hata ihtimaline karşı .get() kullanıyoruz
+                fk = info.get("trailingPE", "N/A")
+                pddd = info.get("priceToBook", "N/A")
+                return {"fiyat": f"{fiyat:.2f}", "fk": str(fk), "pddd": str(pddd)}
+        except:
+            time.sleep(1) # Hata olursa 1 saniye bekle ve tekrar dene
+    return {"fiyat": "0.00", "fk": "N/A", "pddd": "N/A"}
+    
 def veri_yonlendirici(sembol):
     return bist_veri_cek(sembol) if ".IS" in sembol else yabanci_veri_cek(sembol)
     
@@ -329,10 +328,17 @@ def ajani_calistir(rapor_tipi="KULLANICI TALEBİ ANALİZ"):
     takip_listesi = HAFIZA["takip_listesi"]
     toplu_metin = ""
     
-    for s in takip_listesi:
+        for s in takip_listesi:
         v = finansal_veri_topla(s)
-        toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{v['fk']}, PD/DD:{v['pddd']}"
-    
+        # Sadece verisi gelen kısımları yaz, boşsa "Veri Alınamadı" yazdır
+        fk_str = v['fk'] if v['fk'] != 'N/A' else "Bilinmiyor"
+        pddd_str = v['pddd'] if v['pddd'] != 'N/A' else "Bilinmiyor"
+        
+        if v['fiyat'] != "0.00":
+            toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{fk_str}, PD/DD:{pddd_str}"
+        else:
+            toplu_metin += f"\n- {s}: Fiyat bilgisi teknik engel nedeniyle çekilemedi."
+            
     # PROMPT ARTIK SOLA YASLI VE DÜZGÜN
         prompt = f"""Sen kıdemli bir finansal portföy yöneticisisin. 
     Aşağıdaki piyasa verilerini ve küresel haberleri kullanarak profesyonel bir analiz yap.
