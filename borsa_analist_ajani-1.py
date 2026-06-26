@@ -19,7 +19,7 @@ def bist_veri_cek(sembol):
         # Canlı fiyatı çek
         df = investpy.get_stock_recent_data(stock=clean_symbol, country='turkey', interval='Daily')
         guncel_fiyat = float(df['Close'].iloc[-1])
-        
+        print(f"DEBUG: {sembol} verisi çekildi")
         # BIST için temel veriler (FK/PDDD) Investing'de bazen gün içi gecikmeli gelir
         return {"fiyat": f"{guncel_fiyat:.2f}", "fk": "N/A", "pddd": "N/A"}
     except:
