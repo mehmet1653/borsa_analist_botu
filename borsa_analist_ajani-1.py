@@ -360,7 +360,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
     Küresel Haber: {genel_haber}
 
     GÖREV:
-    - Tablo: | HİSSE | FİYAT | RSI | MACD | pddd | fk | KARAR | STRATEJİ |
+    - Tablo: | HİSSE | FİYAT | RSI | MACD | PD/DD | FK | KARAR | STRATEJİ |
     - KARAR: AL, SAT, TUT, BEKLE.
     - STRATEJİ: 3 kelimelik net neden.
     Eğer bir hissenin FK veya PD/DD verisi 'N/A' ise, tablo hücresine mutlaka '-' (tire) işareti koy. Asla boş bırakma.
