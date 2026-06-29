@@ -333,12 +333,12 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
     
     # Her hisse için tek tek veri çek ve takılmayı engelle
     for s in HAFIZA.get("takip_listesi", []):
-        v = finansal_veri_topla(s)
-        # HAFIZA'dan güncel temel veriyi çek
-        temel = HAFIZA.get("temel_veriler", {}).get(s, {"fk": "N/A", "pddd": "N/A"})
-        try: 
+        try:
+            v = finansal_veri_topla(s)
+            temel = HAFIZA.get("temel_veriler", {}).get(s, {"fk": "N/A", "pddd": "N/A"})
+            
             if v["fiyat"] != "0.00":
-            toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{temel['fk']}, PD/DD:{temel['pddd']}"
+                toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{temel['fk']}, PD/DD:{temel['pddd']}"
             else:
                 print(f"⚠️ {s} için veri gelmedi, atlandı.")
         except Exception as e:
