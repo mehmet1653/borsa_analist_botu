@@ -336,7 +336,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
         v = finansal_veri_topla(s)
         # HAFIZA'dan güncel temel veriyi çek
         temel = HAFIZA.get("temel_veriler", {}).get(s, {"fk": "N/A", "pddd": "N/A"})
-        
+        try: 
         if v["fiyat"] != "0.00":
             toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{temel['fk']}, PD/DD:{temel['pddd']}"
         else:
