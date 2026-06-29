@@ -333,14 +333,13 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
     
     # Her hisse için tek tek veri çek ve takılmayı engelle
     for s in HAFIZA.get("takip_listesi", []):
-        try:
-            print(f"🔍 İşlenen: {s}")
-            # Veri çekmeyi bir thread gibi düşünme, basit bir timeout ile yönet
-            v = finansal_veri_topla(s) 
-            
-            if v["fiyat"] != "0.00":
-                toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}"
-            else:
+        v = finansal_veri_topla(s)
+        # HAFIZA'dan güncel temel veriyi çek
+        temel = HAFIZA.get("temel_veriler", {}).get(s, {"fk": "N/A", "pddd": "N/A"})
+        
+        if v["fiyat"] != "0.00":
+            toplu_metin += f"\n- {s}: Fiyat:{v['fiyat']}, RSI:{v['rsi']}, MACD:{v['macd']}, FK:{temel['fk']}, PD/DD:{temel['pddd']}"
+        else:
                 print(f"⚠️ {s} için veri gelmedi, atlandı.")
         except Exception as e:
             print(f"❌ {s} işlem hatası: {e}")
@@ -364,6 +363,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
     - Tablo: | HİSSE | FİYAT | RSI | MACD | pddd | fk | KARAR | STRATEJİ |
     - KARAR: AL, SAT, TUT, BEKLE.
     - STRATEJİ: 3 kelimelik net neden.
+    Eğer bir hissenin FK veya PD/DD verisi 'N/A' ise, tablo hücresine mutlaka '-' (tire) işareti koy. Asla boş bırakma.
     """
     
     # API çağrısı
