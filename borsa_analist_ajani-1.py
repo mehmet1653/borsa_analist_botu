@@ -361,7 +361,7 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
     Küresel Haber: {genel_haber}
 
     GÖREV:
-    - Tablo: | HİSSE | FİYAT | RSI | MACD | KARAR | STRATEJİ |
+    - Tablo: | HİSSE | FİYAT | RSI | MACD | pddd | fk | KARAR | STRATEJİ |
     - KARAR: AL, SAT, TUT, BEKLE.
     - STRATEJİ: 3 kelimelik net neden.
     """
