@@ -382,12 +382,12 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
         
 def ajan_kendi_kendini_egit():
     # 1. Tarih hesaplamalarını netleştir
-      su_an_utc = dt.datetime.utcnow()
-      tr_saati = su_an_utc + dt.timedelta(hours=3)
-      yedi_gun_once = (tr_saati - dt.timedelta(days=7)).strftime('%Y-%m-%d')
+    su_an_utc = dt.datetime.utcnow()
+    tr_saati = su_an_utc + dt.timedelta(hours=3)
+    yedi_gun_once = (tr_saati - dt.timedelta(days=7)).strftime('%Y-%m-%d')
     
     # 2. Geçmiş verinin varlığını kontrol et
-     if yedi_gun_once not in HAFIZA.get("tahmin_gunlugu", {}):
+    if yedi_gun_once not in HAFIZA.get("tahmin_gunlugu", {}):
         print(f"⚠️ Eğitim için {yedi_gun_once} tarihli kayıt bulunamadı.")
         return
 
@@ -395,12 +395,12 @@ def ajan_kendi_kendini_egit():
     bugunku_fiyatlar = {}
     
     # 3. Güncel piyasa verisini çek
-     for sembol in HAFIZA.get("takip_listesi", []):
+    for sembol in HAFIZA.get("takip_listesi", []):
         veri = finansal_veri_topla(sembol)
         bugunku_fiyatlar[sembol] = veri["fiyat"]
         
     # 4. Analiz için prompt'u hazırla
-     prompt = f"""
+    prompt = f"""
     Sen kendi kararlarını denetleyen bir finansal stratejistsin.
     Geçmiş tahminlerini şu anki piyasa gerçekleriyle karşılaştır.
     
@@ -414,7 +414,7 @@ def ajan_kendi_kendini_egit():
     3. 'ÖĞRENİLEN DERS: ...' şeklinde tek bir kural cümlesi yaz.
     """
     
-     try:
+    try:
         # 5. Gemini'dan dersi al
         response = model.generate_content(prompt)
         ders = response.text.strip()
@@ -427,27 +427,9 @@ def ajan_kendi_kendini_egit():
         hafizayi_kaydet()
         
         telegram_mesaj_gonder(f"🧠 **AJAN ÖZ-EĞİTİM RAPORU** 🧠\n\n{ders}")
-     except Exception as e:
+    except Exception as e:
         print(f"Eğitim döngüsü hatası: {e}")
         
-# ==========================================
-# 🔄 ANA DÖNGÜ (DÜZELTİLDİ VE TEK ÇATI ALTINA ALINDI)
-# ==========================================
-def run_dummy_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
-    print(f"==> Kukla sunucu aktif.")
-    server.serve_forever()
-
-if __name__ == "__main__":
-    print("🚀 Akıllı Borsa Ajanı başlatılıyor...")
-    
-    # Sunucuyu başlat
-    try:
-        threading.Thread(target=run_dummy_server, daemon=True).start()
-    except Exception as e:
-        print(f"❌ Sunucu hatası: {e}")
-
     # Ana döngüyü if __name__ bloğunun içine aldık
     while True:
         try:
