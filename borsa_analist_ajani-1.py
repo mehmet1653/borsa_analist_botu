@@ -380,7 +380,6 @@ def ajani_calistir(rapor_tipi="GÜNLÜK_ANALİZ"):
         print(f"❌ AI Rapor hatası: {e}")
         telegram_mesaj_gonder("⚠️ Yapay zeka raporu üretilirken hata oluştu.")
         
-
 def ajan_kendi_kendini_egit():
     # 1. Tarih hesaplamalarını netleştir
       su_an_utc = dt.datetime.utcnow()
