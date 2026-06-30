@@ -430,6 +430,15 @@ def ajan_kendi_kendini_egit():
     except Exception as e:
         print(f"Eğitim döngüsü hatası: {e}")
         
+def run_dummy_server():
+    try:
+        port = int(os.environ.get("PORT", 10000))
+        server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+        print(f"==> Kukla sunucu {port} portunda aktif.")
+        server.serve_forever()
+    except Exception as e:
+        print(f"❌ SUNUCU BAŞLATILAMADI: {e}")
+        
     # Ana döngüyü if __name__ bloğunun içine aldık
     while True:
         try:
