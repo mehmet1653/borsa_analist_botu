@@ -438,39 +438,36 @@ def run_dummy_server():
         server.serve_forever()
     except Exception as e:
         print(f"❌ SUNUCU BAŞLATILAMADI: {e}")
-        
-    # Ana döngüyü if __name__ bloğunun içine aldık
+
+if __name__ == "__main__":
+    print("🚀 Akıllı Borsa Ajanı başlatılıyor...")
+    
+    # 1. Sunucuyu ayrı bir 'thread' olarak başlat
+    threading.Thread(target=run_dummy_server, daemon=True).start()
+
+    # 2. Ana döngü (Kodun sürekli çalışmasını sağlayan motor)
     while True:
         try:
-            # 1. Komutları dinle
             telegram_komutlari_dinle()
             
-            # 2. Zamanı hesapla
             su_an_utc = dt.datetime.utcnow()
             tr_saati = su_an_utc + dt.timedelta(hours=3)
             saat_dakika = tr_saati.strftime("%H:%M")
             saniye = int(tr_saati.strftime("%S"))
             
-            # 3. Tetikleme mekanizması
-            if saniye < 15:
+            if saniye < 15: # Dakika başlarında kontrol et
                 if saat_dakika in ["11:00", "18:30", "23:30"]:
                     print(f"⏰ Tetiklendi: {saat_dakika}")
-                    if saat_dakika == "11:00":
-                        ajani_calistir("SABAH AÇILIŞ")
-                    elif saat_dakika == "18:30":
-                        ajani_calistir("AKŞAM KAPANIŞ")
+                    if saat_dakika == "11:00": ajani_calistir("SABAH AÇILIŞ")
+                    elif saat_dakika == "18:30": ajani_calistir("AKŞAM KAPANIŞ")
                     elif saat_dakika == "23:30":
                         resmi_kaynaktan_temel_veri_guncelle()
                         ajan_kendi_kendini_egit()
                     time.sleep(65) 
             
-            time.sleep(2) # CPU'yu yormamak için
-            
+            time.sleep(2) 
         except Exception as e:
             print(f"❌ Ana döngü hatası: {e}")
-            time.sleep(10) # Hata olursa 10 saniye bekle ve devam et
-            
-
-
+            time.sleep(10)
         
         
