@@ -291,37 +291,28 @@ def dunya_gundemini_cek():
     return "\n".join(haberler) if haberler else "Piyasalar sakin."
     
 def finansal_veri_topla(sembol):
-    print(f"🔍 {sembol} verisi çekiliyor...")
-def finansal_veri_topla(sembol):
     print(f"DEBUG: {sembol} analizi başlatılıyor...")
     try:
-        # Ticker objesini oluştur ama henüz veri çekme
         ticker = yf.Ticker(sembol)
-        
-        # history verisi donuyorsa, burada timeout kontrolü yapacağız
-        # yfinance'in kendi timeout'u bazen yetersiz kalır, bu yüzden basit bir deneme yapıyoruz
         df = ticker.history(period="3mo", interval="1d")
         
-        if df.empty:
-            print(f"DEBUG: {sembol} boş veri döndü.")
+        if df.empty or len(df) < 14:
             return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A"}
 
-        # HESAPLAMALAR
         close = df['Close'].iloc[-1]
-        rsi = ta.momentum.rsi(df['Close'], window=14).iloc[-1]
+        # Hata ihtimalini engellemek için .fillna(0) ekliyoruz
+        rsi_val = ta.momentum.rsi(df['Close'], window=14).iloc[-1]
         macd_df = ta.trend.MACD(df['Close'])
-        macd = macd_df.macd().iloc[-1]
-        signal = macd_df.macd_signal().iloc[-1]
+        macd_val = macd_df.macd().iloc[-1]
+        signal_val = macd_df.macd_signal().iloc[-1]
         
-        print(f"DEBUG: {sembol} analiz edildi.")
         return {
             "fiyat": f"{float(close):.2f}",
-            "rsi": f"{float(rsi):.2f}",
-            "macd": "AL" if macd > signal else "SAT",
+            "rsi": f"{float(rsi_val):.2f}" if pd.notnull(rsi_val) else "N/A",
+            "macd": "AL" if macd_val > signal_val else "SAT",
             "fk": "N/A", "pddd": "N/A"
         }
     except Exception as e:
-        print(f"DEBUG: HATA {sembol} -> {str(e)}")
         return {"fiyat": "0.00", "rsi": "N/A", "macd": "N/A", "fk": "N/A", "pddd": "N/A"}
         
 # ==========================================
