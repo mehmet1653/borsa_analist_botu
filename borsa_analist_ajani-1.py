@@ -250,10 +250,14 @@ def telegram_komutlari_dinle():
                 hisse = parcalar[1].upper()
                 if hisse in HAFIZA["takip_listesi"]:
                     HAFIZA["takip_listesi"].remove(hisse)
-                    if hisse in HAFIZA["portfoy"]: del HAFIZA["portfoy"][hisse]
+                    # BURAYI EKLE:
+                    if hisse in HAFIZA["temel_veriler"]: 
+                        del HAFIZA["temel_veriler"][hisse]
+                    if hisse in HAFIZA["portfoy"]: 
+                        del HAFIZA["portfoy"][hisse]
                     hafizayi_kaydet()
-                    telegram_mesaj_gonder(f"❌ `{hisse}` takip listesinden çıkarıldı.")
-
+                    telegram_mesaj_gonder(f"❌ `{hisse}` hafızadan tamamen silindi.")
+                    
             elif komut == "/hafiza_temizle":
                 HAFIZA["ogrenilen_dersler"] = []
                 HAFIZA["tahmin_gunlugu"] = {}
